@@ -7,17 +7,17 @@ import os
 import re
 
 import matplotlib.pyplot as plt
-import numpy as np
+# import numpy as np
 __author__ = 'assafarbelle'
 
 restore = True
-run_num = '1'
-base_folder = '/Users/assafarbelle/Google Drive/PhD/DeepSegmentation/Data/Alon_Full/'
+run_num = '2'
+base_folder = '/home/Data/Alon_Small/'
 train_filename = base_folder + 'test.csv'
 val_filename = base_folder + 'val.csv'
-image_size=(256, 160, 1)
-save_dir = '/Users/assafarbelle/Google Drive/PhD/DeepSegmentation/Snapshots/AlonLabFull/GAN/'+run_num
-summaries_dir_name = '/Users/assafarbelle/Google Drive/PhD/DeepSegmentation/Logs/AlonLabFull/GAN/'+run_num
+image_size = (64, 64, 1)
+save_dir = '/home/Snapshots/AlonLabFull/GAN/'+run_num
+summaries_dir_name = '/home/Logs/AlonLabFull/GAN/'+run_num
 if not os.path.exists(save_dir):
     os.makedirs(save_dir)
 if not os.path.exists(summaries_dir_name):
@@ -174,7 +174,7 @@ class GANTrainer(object):
         val_image_batch, val_seg_batch = self.val_csv_reader.get_batch(batch_size)
 
 
-        with tf.device('/cpu:0'):
+        with tf.device('/gpu:0'):
             with tf.name_scope('tower0'):
 
                 net_g = SegNetG(train_image_batch_gan)
@@ -194,7 +194,7 @@ class GANTrainer(object):
                     net_d.build(True)
                 loss_d = tf.nn.sigmoid_cross_entropy_with_logits(net_d.layers['fc_out'], full_batch_label)
                 log2_const = tf.constant(0.6931)
-                loss_g =10*tf.exp(-loss_d)#tf.div(1.,tf.maximum(loss_d,0.1)) #tf.abs(tf.sub(loss_d,log2_const))
+                loss_g = tf.div(1., tf.maximum(loss_d, 0.01)) #tf.abs(tf.sub(loss_d,log2_const)) #10*tf.exp(-loss_d)#
 
                 update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
                 updates = tf.group(*update_ops) if update_ops else tf.no_op()
@@ -235,7 +235,7 @@ class GANTrainer(object):
                 self.val_batch_loss_d = tf.reduce_mean(val_loss_d)
                 self.val_batch_loss_g = tf.reduce_mean(val_loss_g)
                 self.val_dice = val_dice
-                self.val_fetch = [val_gan_seg_batch, val_croped_image_gan, val_croped_seg_gan]
+                self.val_fetch = [val_croped_image_gan, val_croped_seg_gan, val_gan_seg_batch]
 
         opt_d = tf.train.RMSPropOptimizer(self.LR_d)
         opt_g = tf.train.RMSPropOptimizer(self.LR_g)
@@ -266,7 +266,7 @@ class GANTrainer(object):
 
     def train(self, lr_g=0.1, lr_d=0.1, g_steps=1, d_steps=3, l2_coeff=0.0001, l1_coeff=0.5, max_itr=100000,
               summaries=True, validation_interval=10,
-              save_checkpoint_interval=200):
+              save_checkpoint_interval=200, plot_examples_interval=100):
 
         if summaries:
 
@@ -323,12 +323,30 @@ class GANTrainer(object):
                 if not i % save_checkpoint_interval:
                     save_path = saver.save(sess, os.path.join(save_dir, "model_%d.ckpt") % i)
                     print("Model saved in file: %s" % save_path)
+                if not i % plot_examples_interval:
+                    fetch = sess.run(self.val_fetch)
+                    plt.figure(1)
+                    plt.imshow(fetch[0][0][:, :, 0])
+                    plt.ion()
+                    plt.show()
+                    plt.figure(2)
+                    plt.imshow(fetch[1][0][:, :, 0])
+                    plt.ion()
+                    plt.show()
+                    plt.figure(3)
+                    plt.clf()
+                    plt.imshow(fetch[2][0][:, :, 0])
+                    plt.colorbar()
+                    plt.ion()
+                    plt.show()
+                    plt.pause(0.001)
 
 if __name__ == "__main__":
     trainer = GANTrainer(train_filename, val_filename, summaries_dir_name)
     trainer.build(batch_size=2)
-    trainer.train(lr_g=0.001, lr_d=0.001, g_steps=3, d_steps=1, l2_coeff=0.01, l1_coeff=0, max_itr=5000, summaries=True, validation_interval=10,
-                  save_checkpoint_interval=200)
+    trainer.train(lr_g=0.001, lr_d=0.001, g_steps=3, d_steps=1, l2_coeff=0.01, l1_coeff=0, max_itr=10000,
+                  summaries=True, validation_interval=10,
+                  save_checkpoint_interval=100, plot_examples_interval=10)
 
 
 

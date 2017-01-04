@@ -1,12 +1,11 @@
 
 import tensorflow as tf
-import os
-import numpy as np
-import matplotlib.pyplot as plt
-import matplotlib.image as mpimage
+# import os
+# import numpy as np
+# import matplotlib.pyplot as plt
+# import matplotlib.image as mpimage
 
 __author__ = 'assafarbelle'
-
 
 
 class CSVSegReader(object):
