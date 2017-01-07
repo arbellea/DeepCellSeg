@@ -345,7 +345,7 @@ if __name__ == "__main__":
     trainer.build(batch_size=2)
     trainer.train(lr_g=0.001, lr_d=0.001, g_steps=3, d_steps=1, l2_coeff=0.01, l1_coeff=0, max_itr=10000,
                   summaries=True, validation_interval=10,
-                  save_checkpoint_interval=100, plot_examples_interval=10)
+                  save_checkpoint_interval=100, plot_examples_interval=10000000)
 
 
 
