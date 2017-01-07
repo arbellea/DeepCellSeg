@@ -7,7 +7,7 @@ import os
 import re
 
 import matplotlib.pyplot as plt
-# import numpy as np
+import numpy as np
 __author__ = 'assafarbelle'
 
 restore = True
@@ -228,9 +228,11 @@ class GANTrainer(object):
                 val_loss_d = tf.nn.sigmoid_cross_entropy_with_logits(val_net_d.layers['fc_out'], val_full_batch_label)
 
                 val_loss_g = tf.abs(tf.sub(val_loss_d,log2_const))
+                eps = tf.constant(np.finfo(float).eps)
                 val_intersection = tf.mul(val_croped_seg_gan,val_gan_seg_batch)
-                val_union =  tf.sub(tf.add(val_croped_seg_gan,val_gan_seg_batch),val_intersection)
-                val_dice = tf.reduce_mean(tf.div(tf.reduce_sum(val_intersection, [1,2]),tf.reduce_sum(val_union, [1,2])))
+                val_union = tf.sub(tf.add(val_croped_seg_gan,val_gan_seg_batch),val_intersection)
+                val_dice = tf.reduce_mean(tf.div(tf.add(tf.reduce_sum(val_intersection, [1,2]), eps),
+                                                 tf.add(tf.reduce_sum(val_union, [1,2])),eps))
 
                 self.val_batch_loss_d = tf.reduce_mean(val_loss_d)
                 self.val_batch_loss_g = tf.reduce_mean(val_loss_g)
@@ -251,9 +253,6 @@ class GANTrainer(object):
         self.val_objective_summary = [tf.scalar_summary('objective_d', self.val_batch_loss_d, name='objective_summary_d'),
                                   tf.scalar_summary('objective_g', self.val_batch_loss_g, name='objective_summary_g'),
                                       tf.scalar_summary('dice', val_dice, name='val_dice')]
-
-        # TODO: This is where I stopped
-
 
         for g, v in grads_vars_d:
             self.hist_summaries.append(tf.histogram_summary(v.op.name + '/value', v, name=v.op.name + '_summary'))
