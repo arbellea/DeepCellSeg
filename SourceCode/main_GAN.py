@@ -2,11 +2,11 @@
 import tensorflow as tf
 from Network import Network
 from DataHandeling import CSVSegReader
-import utils
+# import utils
 import os
 import re
 
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 import numpy as np
 __author__ = 'assafarbelle'
 
@@ -329,6 +329,7 @@ class GANTrainer(object):
                     print("Model saved in file: %s" % save_path)
                 if not i % plot_examples_interval:
                     fetch = sess.run(self.val_fetch)
+                    """
                     plt.figure(1)
                     plt.imshow(fetch[0][0][:, :, 0])
                     plt.ion()
@@ -344,6 +345,7 @@ class GANTrainer(object):
                     plt.ion()
                     plt.show()
                     plt.pause(0.001)
+                    """
 
 if __name__ == "__main__":
     trainer = GANTrainer(train_filename, val_filename, summaries_dir_name)
