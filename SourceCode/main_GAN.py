@@ -254,19 +254,19 @@ class GANTrainer(object):
         self.train_step_d = opt_d.apply_gradients(grads_vars_d)
         self.train_step_g = opt_g.apply_gradients(grads_vars_g)
 
-        self.objective_summary = [tf.scalar_summary('objective_d', self.total_loss_d, name='objective_summary_d'),
-                                  tf.scalar_summary('objective_g', self.total_loss_g, name='objective_summary_g')]
+        self.objective_summary = [tf.summary.scalar('train/objective_d', self.total_loss_d),
+                                  tf.summary.scalar('train/objective_g', self.total_loss_g)]
         self.val_objective_summary = [tf.scalar_summary('objective_d', self.val_batch_loss_d, name='objective_summary_d'),
-                                  tf.scalar_summary('objective_g', self.val_batch_loss_g, name='objective_summary_g'),
-                                      tf.scalar_summary('dice', val_dice, name='val_dice')]
+                                  tf.summary,scalar('val/objective_g', self.val_batch_loss_g),
+                                      tf.summary.scalar('val/dice', val_dice)]
 
         for g, v in grads_vars_d:
-            self.hist_summaries.append(tf.histogram_summary(v.op.name + '/value', v, name=v.op.name + '_summary'))
-            self.hist_summaries.append(tf.histogram_summary(v.op.name + '/grad', g,
+            self.hist_summaries.append(tf.summary.histogram(v.op.name + '/value', v, name=v.op.name + '_summary'))
+            self.hist_summaries.append(tf.summary.histogram(v.op.name + '/grad', g,
                                                             name=v.op.name + '_grad_summary'))
         for g, v in grads_vars_g:
-            self.hist_summaries.append(tf.histogram_summary(v.op.name + '/value', v, name=v.op.name + '_summary'))
-            self.hist_summaries.append(tf.histogram_summary(v.op.name + '/grad', g,
+            self.hist_summaries.append(tf.summary.histogram(v.op.name + '/value', v, name=v.op.name + '_summary'))
+            self.hist_summaries.append(tf.summary.histogram(v.op.name + '/grad', g,
                                                             name=v.op.name + '_grad_summary'))
 
     def train(self, lr_g=0.1, lr_d=0.1, g_steps=1, d_steps=3, l2_coeff=0.0001, l1_coeff=0.5, max_itr=100000,
@@ -275,11 +275,11 @@ class GANTrainer(object):
 
         if summaries:
 
-            train_merged_summaries = tf.merge_summary(self.hist_summaries+self.objective_summary)
-            val_merged_summaries = tf.merge_summary(self.val_objective_summary)
-            train_writer = tf.train.SummaryWriter(os.path.join(self.summaries_dir, 'train'),
+            train_merged_summaries = tf.summary.merge(self.hist_summaries+self.objective_summary)
+            val_merged_summaries = tf.summary.merge(self.val_objective_summary)
+            train_writer = tf.summary.FileWriter(os.path.join(self.summaries_dir, 'train'),
                                                   graph=tf.get_default_graph())
-            val_writer = tf.train.SummaryWriter(os.path.join(self.summaries_dir, 'val'))
+            val_writer = tf.summary.FileWriter(os.path.join(self.summaries_dir, 'val'))
         else:
             train_merged_summaries = tf.no_op()
             val_merged_summaries = tf.no_op()
@@ -288,7 +288,7 @@ class GANTrainer(object):
 
         with tf.Session() as sess:
 
-            sess.run(tf.initialize_all_variables())
+            sess.run(tf.global_variables_initializer())
             t = 0
             if restore:
                 chkpnt_info = tf.train.get_checkpoint_state(save_dir)
