@@ -359,7 +359,7 @@ if __name__ == "__main__":
     print "Start"
     trainer = GANTrainer(train_filename, val_filename, summaries_dir_name)
     print "Build Trainer"
-    trainer.build(batch_size=40)
+    trainer.build(batch_size=100)
     print "Start Training"
     trainer.train(lr_g=0.0001, lr_d=0.0001, g_steps=3, d_steps=1, l2_coeff=0.01, l1_coeff=0, max_itr=20000,
                   summaries=True, validation_interval=10,
