@@ -16,12 +16,12 @@ SNAPSHOT_DIR = os.environ['SNAPSHOT_DIR']
 LOG_DIR = os.environ['LOG_DIR']
 restore = True
 run_num = '1'
-base_folder = os.path.join(DATA_DIR, 'Alon_Small/')
+base_folder = os.path.join(DATA_DIR, 'Alon_Full/')
 train_filename = os.path.join(base_folder, 'test.csv')
 val_filename = os.path.join(base_folder, 'val.csv')
 image_size = (64, 64, 1)
-save_dir = os.path.join(SNAPSHOT_DIR, 'Alon_Small', 'GAN', run_num)
-summaries_dir_name = os.path.join(LOG_DIR, 'Alon_Small', 'GAN', run_num)
+save_dir = os.path.join(SNAPSHOT_DIR, 'Alon_Full', 'GAN', run_num)
+summaries_dir_name = os.path.join(LOG_DIR, 'Alon_Full', 'GAN', run_num)
 
 if not os.path.exists(save_dir):
     os.makedirs(save_dir)
@@ -357,7 +357,7 @@ if __name__ == "__main__":
     print "Start"
     trainer = GANTrainer(train_filename, val_filename, summaries_dir_name)
     print "Build Trainer"
-    trainer.build(batch_size=100)
+    trainer.build(batch_size=10)
     print "Start Training"
     trainer.train(lr_g=0.0001, lr_d=0.0001, g_steps=3, d_steps=1, l2_coeff=0.01, l1_coeff=0, max_itr=20000,
                   summaries=True, validation_interval=10,
