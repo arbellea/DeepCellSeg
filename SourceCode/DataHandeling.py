@@ -11,7 +11,7 @@ __author__ = 'assafarbelle'
 class CSVSegReader(object):
 
     def __init__(self, filenames, base_folder='.', image_size=(64,64,1), num_threads=4,
-                 capacity=100, min_after_dequeue=30):
+                 capacity=300, min_after_dequeue=100):
         """
         CSVSegReader is a class that reads csv files containing paths to input image and segmentation image and outputs
         batchs of correspoding image inputs and segmentation inputs.
