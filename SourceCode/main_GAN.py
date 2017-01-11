@@ -19,7 +19,8 @@ run_num = '1'
 base_folder = os.path.join(DATA_DIR, 'Alon_Full/')
 train_filename = os.path.join(base_folder, 'test.csv')
 val_filename = os.path.join(base_folder, 'val.csv')
-image_size = (64, 64, 1)
+image_size = (160, 256, 1)
+# image_size = (64, 64, 1)
 save_dir = os.path.join(SNAPSHOT_DIR, 'Alon_Full', 'GAN', run_num)
 summaries_dir_name = os.path.join(LOG_DIR, 'Alon_Full', 'GAN', run_num)
 
