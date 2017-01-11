@@ -256,8 +256,8 @@ class GANTrainer(object):
 
         self.objective_summary = [tf.summary.scalar('train/objective_d', self.total_loss_d),
                                   tf.summary.scalar('train/objective_g', self.total_loss_g)]
-        self.val_objective_summary = [tf.scalar_summary('objective_d', self.val_batch_loss_d, name='objective_summary_d'),
-                                  tf.summary,scalar('val/objective_g', self.val_batch_loss_g),
+        self.val_objective_summary = [tf.summary.scalar('val/objective_d', self.val_batch_loss_d),
+                                  tf.summary.scalar('val/objective_g', self.val_batch_loss_g),
                                       tf.summary.scalar('val/dice', val_dice)]
 
         for g, v in grads_vars_d:
