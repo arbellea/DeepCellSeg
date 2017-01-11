@@ -5,6 +5,7 @@ from DataHandeling import CSVSegReader
 # import utils
 import os
 import re
+import time
 
 # import matplotlib.pyplot as plt
 import numpy as np
@@ -305,22 +306,28 @@ class GANTrainer(object):
 
                 for _ in range(d_steps):
                     ii += 1
+                    start = time.time()
                     _, loss, objective, summaries_string = sess.run(train_fetch_d, feed_dict=feed_dict)
-                    print "Train Step D: %d Loss: %g Objective: %g \n" % (ii, loss, objective)
+                    elapsed = start - time.time()
+                    print "Train Step D: %d Elapsed Time: %g Objective: %g \n" % (ii, elapsed, objective)
                     if summaries:
                         train_writer.add_summary(summaries_string, ii)
                         train_writer.flush()
                 for _ in range(g_steps):
                     ii += 1
+                    start = time.time()
                     _, loss, objective, summaries_string = sess.run(train_fetch_g, feed_dict=feed_dict)
-                    print "Train Step G: %d Loss: %g Objective: %g \n" % (ii, loss, objective)
+                    elapsed = start - time.time()
+                    print "Train Step G: %d Elapsed Time: %g Objective: %g \n" % (ii, elapsed, objective)
                     if summaries:
                         train_writer.add_summary(summaries_string, ii)
                         train_writer.flush()
 
                 if not i % validation_interval:
+                    start = time.time()
                     v_dice, summaries_string = sess.run([self.val_dice, val_merged_summaries])
-                    print "Validation Step: %d Dice: %g\n" % (ii, v_dice)
+                    elapsed = start - time.time()
+                    print "Validation Step: %d Elapsed Time: %g Dice: %g\n" % (ii, elapsed, v_dice)
                     if summaries:
                         val_writer.add_summary(summaries_string, ii)
                         val_writer.flush()
