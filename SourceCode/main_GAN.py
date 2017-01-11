@@ -261,13 +261,11 @@ class GANTrainer(object):
                                       tf.summary.scalar('val/dice', val_dice)]
 
         for g, v in grads_vars_d:
-            self.hist_summaries.append(tf.summary.histogram(v.op.name + '/value', v, name=v.op.name + '_summary'))
-            self.hist_summaries.append(tf.summary.histogram(v.op.name + '/grad', g,
-                                                            name=v.op.name + '_grad_summary'))
+            self.hist_summaries.append(tf.summary.histogram(v.op.name + '/value', v))
+            self.hist_summaries.append(tf.summary.histogram(v.op.name + '/grad', g))
         for g, v in grads_vars_g:
-            self.hist_summaries.append(tf.summary.histogram(v.op.name + '/value', v, name=v.op.name + '_summary'))
-            self.hist_summaries.append(tf.summary.histogram(v.op.name + '/grad', g,
-                                                            name=v.op.name + '_grad_summary'))
+            self.hist_summaries.append(tf.summary.histogram(v.op.name + '/value', v))
+            self.hist_summaries.append(tf.summary.histogram(v.op.name + '/grad', g))
 
     def train(self, lr_g=0.1, lr_d=0.1, g_steps=1, d_steps=3, l2_coeff=0.0001, l1_coeff=0.5, max_itr=100000,
               summaries=True, validation_interval=10,
