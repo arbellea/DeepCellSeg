@@ -282,7 +282,7 @@ class GANTrainer(object):
             train_merged_summaries = tf.no_op()
             val_merged_summaries = tf.no_op()
 
-        saver = tf.train.Saver(tf.all_variables())
+        saver = tf.train.Saver(tf.global_variables())
 
         with tf.Session() as sess:
 
