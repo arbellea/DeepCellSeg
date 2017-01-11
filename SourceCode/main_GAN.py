@@ -11,7 +11,7 @@ import numpy as np
 __author__ = 'assafarbelle'
 
 DATA_DIR = os.environ['DATA_DIR']
-SNAPSHOT_DIR = os.environ['SNAPSHOT_DIR']
+SNAPSHOT_DIR = os.environ['SNAPSHOT_DIR'] 
 LOG_DIR = os.environ['LOG_DIR']
 restore = True
 run_num = '1'
