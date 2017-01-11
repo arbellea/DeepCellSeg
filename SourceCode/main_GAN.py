@@ -10,14 +10,18 @@ import matplotlib.pyplot as plt
 import numpy as np
 __author__ = 'assafarbelle'
 
+DATA_DIR = os.environ['DATA_DIR']
+SNAPSHOT_DIR = os.environ['SNAPSHOT_DIR']
+LOG_DIR = os.environ['LOG_DIR']
 restore = True
 run_num = '2'
-base_folder = '/home/Data/Alon_Small/'
+base_folder = os.path.join(DATA_DIR, 'Alon_Small')
 train_filename = base_folder + 'test.csv'
 val_filename = base_folder + 'val.csv'
 image_size = (64, 64, 1)
-save_dir = '/home/Snapshots/AlonLabFull/GAN/'+run_num
-summaries_dir_name = '/home/Logs/AlonLabFull/GAN/'+run_num
+save_dir = os.path.join(SNAPSHOT_DIR, 'Alon_Small', 'GAN', run_num)
+summaries_dir_name = os.path.join(LOG_DIR, 'Alon_Small', 'GAN', run_num)
+
 if not os.path.exists(save_dir):
     os.makedirs(save_dir)
 if not os.path.exists(summaries_dir_name):
@@ -227,12 +231,13 @@ class GANTrainer(object):
 
                 val_loss_d = tf.nn.sigmoid_cross_entropy_with_logits(val_net_d.layers['fc_out'], val_full_batch_label)
 
-                val_loss_g = tf.abs(tf.sub(val_loss_d,log2_const))
-                eps = tf.constant(np.finfo(float).eps)
-                val_intersection = tf.mul(val_croped_seg_gan,val_gan_seg_batch)
-                val_union = tf.sub(tf.add(val_croped_seg_gan,val_gan_seg_batch),val_intersection)
+                val_loss_g = tf.abs(tf.sub(val_loss_d, log2_const))
+                eps = tf.constant(np.finfo(np.float32).eps)
+                val_hard_seg = tf.round(val_gan_seg_batch)
+                val_intersection = tf.mul(val_croped_seg_gan, val_hard_seg)
+                val_union = tf.sub(tf.add(val_croped_seg_gan, val_hard_seg), val_intersection)
                 val_dice = tf.reduce_mean(tf.div(tf.add(tf.reduce_sum(val_intersection, [1,2]), eps),
-                                                 tf.add(tf.reduce_sum(val_union, [1,2])),eps))
+                                                 tf.add(tf.reduce_sum(val_union, [1,2]), eps)))
 
                 self.val_batch_loss_d = tf.reduce_mean(val_loss_d)
                 self.val_batch_loss_g = tf.reduce_mean(val_loss_g)
@@ -342,8 +347,8 @@ class GANTrainer(object):
 
 if __name__ == "__main__":
     trainer = GANTrainer(train_filename, val_filename, summaries_dir_name)
-    trainer.build(batch_size=2)
-    trainer.train(lr_g=0.001, lr_d=0.001, g_steps=3, d_steps=1, l2_coeff=0.01, l1_coeff=0, max_itr=10000,
+    trainer.build(batch_size=10)
+    trainer.train(lr_g=0.0001, lr_d=0.0001, g_steps=3, d_steps=1, l2_coeff=0.01, l1_coeff=0, max_itr=20000,
                   summaries=True, validation_interval=10,
                   save_checkpoint_interval=100, plot_examples_interval=10000000)
 
