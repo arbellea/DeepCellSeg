@@ -178,7 +178,7 @@ class GANTrainer(object):
         val_image_batch, val_seg_batch = self.val_csv_reader.get_batch(batch_size)
 
 
-        with tf.device('/gpu:0'):
+        with tf.device('/cpu:0'):
             with tf.name_scope('tower0'):
 
                 net_g = SegNetG(train_image_batch_gan)
@@ -349,7 +349,7 @@ class GANTrainer(object):
 
 if __name__ == "__main__":
     trainer = GANTrainer(train_filename, val_filename, summaries_dir_name)
-    trainer.build(batch_size=10)
+    trainer.build(batch_size=20)
     trainer.train(lr_g=0.0001, lr_d=0.0001, g_steps=3, d_steps=1, l2_coeff=0.01, l1_coeff=0, max_itr=20000,
                   summaries=True, validation_interval=10,
                   save_checkpoint_interval=100, plot_examples_interval=10000000)
