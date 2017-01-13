@@ -1,25 +1,29 @@
 
 import tensorflow as tf
+tf.__version__
 from Network import Network
 from DataHandeling import CSVSegReader
 # import utils
 import os
 import re
 import time
-
-# import matplotlib.pyplot as plt
 import numpy as np
+try:
+    import matplotlib.pyplot as plt
+except:
+    plt = None
 __author__ = 'assafarbelle'
 
-DATA_DIR = os.environ['DATA_DIR']
-SNAPSHOT_DIR = os.environ['SNAPSHOT_DIR']
-LOG_DIR = os.environ['LOG_DIR']
+DATA_DIR = os.environ.get('DATA_DIR','/Users/assafarbelle/Google Drive/PhD/DeepSegmentation/Data')
+SNAPSHOT_DIR = os.environ.get('SNAPSHOT_DIR','/Users/assafarbelle/Documents/PhD/Snapshots')
+LOG_DIR = os.environ.get('LOG_DIR','/Users/assafarbelle/Documents/PhD/Tensorboard')
 restore = True
 run_num = '2'
 base_folder = os.path.join(DATA_DIR, 'Alon_Full/')
 train_filename = os.path.join(base_folder, 'test.csv')
 val_filename = os.path.join(base_folder, 'val.csv')
-image_size = (160, 256, 1)
+test_filename = os.path.join(base_folder, 'train.csv')
+image_size = (256,160, 1)
 # image_size = (64, 64, 1)
 save_dir = os.path.join(SNAPSHOT_DIR, 'Alon_Full', 'GAN', run_num)
 summaries_dir_name = os.path.join(LOG_DIR, 'Alon_Full', 'GAN', run_num)
@@ -142,14 +146,17 @@ class RibSegNet(Network):
 
 class GANTrainer(object):
 
-    def __init__(self, train_filenames, val_filenames, summaries_dir):
+    def __init__(self, train_filenames, val_filenames, test_filenames, summaries_dir):
 
         self.train_filenames = train_filenames if isinstance(train_filenames, list) else [train_filenames]
         self.val_filenames = val_filenames if isinstance(val_filenames, list) else [val_filenames]
+        self.test_filenames = test_filenames if isinstance(test_filenames, list) else [test_filenames]
         self.summaries_dir = summaries_dir
         self.train_csv_reader = CSVSegReader(self.train_filenames, base_folder=base_folder, image_size=image_size,
                                              capacity=70, min_after_dequeue=10)
         self.val_csv_reader = CSVSegReader(self.val_filenames, base_folder=base_folder, image_size=image_size,
+                                           capacity=70, min_after_dequeue=10)
+        self.test_csv_reader = CSVSegReader(self.test_filenames, base_folder=base_folder, image_size=image_size,
                                            capacity=70, min_after_dequeue=10)
         # Set variable for net and losses
         self.net = None
@@ -335,9 +342,9 @@ class GANTrainer(object):
                 if not i % save_checkpoint_interval:
                     save_path = saver.save(sess, os.path.join(save_dir, "model_%d.ckpt") % i)
                     print("Model saved in file: %s" % save_path)
-                if not i % plot_examples_interval:
+                if plt and not i % plot_examples_interval:
                     fetch = sess.run(self.val_fetch)
-                    """
+
                     plt.figure(1)
                     plt.imshow(fetch[0][0][:, :, 0])
                     plt.ion()
@@ -353,18 +360,61 @@ class GANTrainer(object):
                     plt.ion()
                     plt.show()
                     plt.pause(0.001)
-                    """
+
+    def validate_checkpoint(self, chekpoint_path, batch_size):
+
+        test_image_batch_gan, test_seg_batch_gan = self.test_csv_reader.get_batch(batch_size)
+        net_g = SegNetG(test_image_batch_gan)
+        with tf.variable_scope('net_g'):
+            gan_seg_batch, crop_size = net_g.build(False)
+        target_hw = gan_seg_batch.get_shape().as_list()[1:3]
+        croped_image = tf.slice(test_image_batch_gan, [0, crop_size, crop_size, 0], [-1, target_hw[0], target_hw[1], -1])
+        croped_seg = tf.slice(test_seg_batch_gan, [0, crop_size, crop_size, 0], [-1, target_hw[0], target_hw[1], -1])
+        eps = tf.constant(np.finfo(np.float32).eps)
+        test_hard_seg = tf.round(gan_seg_batch)
+        test_intersection = tf.mul(croped_seg, test_hard_seg)
+        test_union = tf.sub(tf.add(croped_seg, test_hard_seg), test_intersection)
+        test_dice = tf.reduce_mean(tf.div(tf.add(tf.reduce_sum(test_intersection, [1,2]), eps),
+                                         tf.add(tf.reduce_sum(test_union, [1,2]), eps)))
+        saver = tf.train.Saver(var_list=tf.global_variables(), allow_empty=True)
+        with tf.Session() as sess:
+            sess.run(tf.global_variables_initializer())
+            tf.train.start_queue_runners(sess)
+            saver.restore(sess, chekpoint_path)
+            for _ in range(3):
+                dice, image, seg, gan_seg = sess.run([test_dice, croped_image, croped_seg, gan_seg_batch])
+                for i in range(image.shape[0]):
+                    I = np.squeeze(image[i])
+                    S = np.squeeze(seg[i])
+                    G = np.squeeze(gan_seg[i])
+                    if plt:
+                        plt.figure(1)
+                        plt.imshow(I)
+                        plt.figure(2)
+                        plt.imshow(S)
+                        plt.figure(3)
+                        plt.imshow(G)
+                        time.sleep(5)
+                        plt.show()
+
+
+
+
+
 
 print __name__
 if __name__ == "__main__":
     print "Start"
-    trainer = GANTrainer(train_filename, val_filename, summaries_dir_name)
+    trainer = GANTrainer(train_filename, val_filename, test_filename, summaries_dir_name)
+    """
+    trainer.validate_checkpoint('/Users/assafarbelle/Documents/PhD/Snapshots/model_8100.ckpt', 3)
+    """
     print "Build Trainer"
     trainer.build(batch_size=30)
     print "Start Training"
     trainer.train(lr_g=0.00001, lr_d=0.00001, g_steps=3, d_steps=1, l2_coeff=0.01, l1_coeff=0, max_itr=20000,
                   summaries=True, validation_interval=10,
-                  save_checkpoint_interval=100, plot_examples_interval=10000000)
+                  save_checkpoint_interval=100, plot_examples_interval=1)
 
 
 
