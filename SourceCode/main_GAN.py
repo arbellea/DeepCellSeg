@@ -147,8 +147,10 @@ class GANTrainer(object):
         self.train_filenames = train_filenames if isinstance(train_filenames, list) else [train_filenames]
         self.val_filenames = val_filenames if isinstance(val_filenames, list) else [val_filenames]
         self.summaries_dir = summaries_dir
-        self.train_csv_reader = CSVSegReader(self.train_filenames, base_folder=base_folder, image_size=image_size)
-        self.val_csv_reader = CSVSegReader(self.val_filenames, base_folder=base_folder, image_size=image_size)
+        self.train_csv_reader = CSVSegReader(self.train_filenames, base_folder=base_folder, image_size=image_size,
+                                             capacity=70, min_after_dequeue=10)
+        self.val_csv_reader = CSVSegReader(self.val_filenames, base_folder=base_folder, image_size=image_size,
+                                           capacity=70, min_after_dequeue=10)
         # Set variable for net and losses
         self.net = None
         self.batch_loss = None
@@ -358,7 +360,7 @@ if __name__ == "__main__":
     print "Start"
     trainer = GANTrainer(train_filename, val_filename, summaries_dir_name)
     print "Build Trainer"
-    trainer.build(batch_size=20)
+    trainer.build(batch_size=30)
     print "Start Training"
     trainer.train(lr_g=0.00001, lr_d=0.00001, g_steps=3, d_steps=1, l2_coeff=0.01, l1_coeff=0, max_itr=20000,
                   summaries=True, validation_interval=10,
