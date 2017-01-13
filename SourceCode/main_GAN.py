@@ -15,7 +15,7 @@ DATA_DIR = os.environ['DATA_DIR']
 SNAPSHOT_DIR = os.environ['SNAPSHOT_DIR']
 LOG_DIR = os.environ['LOG_DIR']
 restore = True
-run_num = '1'
+run_num = '2'
 base_folder = os.path.join(DATA_DIR, 'Alon_Full/')
 train_filename = os.path.join(base_folder, 'test.csv')
 val_filename = os.path.join(base_folder, 'val.csv')
@@ -308,7 +308,7 @@ class GANTrainer(object):
                     start = time.time()
                     _, loss, objective, summaries_string = sess.run(train_fetch_d, feed_dict=feed_dict)
                     elapsed = time.time() - start
-                    print "Train Step D: %d Elapsed Time: %g Objective: %g \n" % (ii, elapsed, objective)
+                    print "Train Step D: %d Elapsed Time: %g Objective: %g \n" % (i, elapsed, objective)
                     if summaries:
                         train_writer.add_summary(summaries_string, ii)
                         train_writer.flush()
@@ -317,7 +317,7 @@ class GANTrainer(object):
                     start = time.time()
                     _, loss, objective, summaries_string = sess.run(train_fetch_g, feed_dict=feed_dict)
                     elapsed =  time.time() - start
-                    print "Train Step G: %d Elapsed Time: %g Objective: %g \n" % (ii, elapsed, objective)
+                    print "Train Step G: %d Elapsed Time: %g Objective: %g \n" % (i, elapsed, objective)
                     if summaries:
                         train_writer.add_summary(summaries_string, ii)
                         train_writer.flush()
@@ -326,7 +326,7 @@ class GANTrainer(object):
                     start = time.time()
                     v_dice, summaries_string = sess.run([self.val_dice, val_merged_summaries])
                     elapsed =  time.time() - start
-                    print "Validation Step: %d Elapsed Time: %g Dice: %g\n" % (ii, elapsed, v_dice)
+                    print "Validation Step: %d Elapsed Time: %g Dice: %g\n" % (i, elapsed, v_dice)
                     if summaries:
                         val_writer.add_summary(summaries_string, ii)
                         val_writer.flush()
@@ -358,9 +358,9 @@ if __name__ == "__main__":
     print "Start"
     trainer = GANTrainer(train_filename, val_filename, summaries_dir_name)
     print "Build Trainer"
-    trainer.build(batch_size=10)
+    trainer.build(batch_size=20)
     print "Start Training"
-    trainer.train(lr_g=0.0001, lr_d=0.0001, g_steps=3, d_steps=1, l2_coeff=0.01, l1_coeff=0, max_itr=20000,
+    trainer.train(lr_g=0.00001, lr_d=0.00001, g_steps=3, d_steps=1, l2_coeff=0.01, l1_coeff=0, max_itr=20000,
                   summaries=True, validation_interval=10,
                   save_checkpoint_interval=100, plot_examples_interval=10000000)
 
