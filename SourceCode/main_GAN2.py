@@ -354,7 +354,7 @@ class GANTrainer(object):
                 if not i % save_checkpoint_interval:
                     save_path = saver.save(sess, os.path.join(save_dir, "model_%d.ckpt") % i)
                     print("Model saved in file: %s" % save_path)
-                if plt and not i % plot_examples_interval:
+                if not i % plot_examples_interval:
                     fetch = sess.run(self.val_image_summary)
                     val_writer.add_summary(fetch, i)
                     val_writer.flush()
