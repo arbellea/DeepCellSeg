@@ -297,6 +297,7 @@ class GANTrainer(object):
 
             train_merged_summaries = tf.summary.merge(self.hist_summaries+self.objective_summary)
             val_merged_summaries = tf.summary.merge(self.val_objective_summary)
+            val_merged_image_summaries = tf.summary.merge(self.val_image_summary)
             train_writer = tf.summary.FileWriter(os.path.join(self.summaries_dir, 'train'))#,
                                                   #graph=tf.get_default_graph())
             val_writer = tf.summary.FileWriter(os.path.join(self.summaries_dir, 'val'))
@@ -323,41 +324,45 @@ class GANTrainer(object):
             train_fetch_g = [self.train_step_g, self.batch_loss_g, self.total_loss_g, train_merged_summaries]
             ii = t*(d_steps+g_steps)
             for i in range(t, max_itr):
+                try:
+                    for _ in range(d_steps):
+                        ii += 1
+                        start = time.time()
+                        _, loss, objective, summaries_string = sess.run(train_fetch_d, feed_dict=feed_dict)
+                        elapsed = time.time() - start
+                        print "Train Step D: %d Elapsed Time: %g Objective: %g \n" % (i, elapsed, objective)
+                        if summaries:
+                            train_writer.add_summary(summaries_string, ii)
+                            train_writer.flush()
+                    for _ in range(g_steps):
+                        ii += 1
+                        start = time.time()
+                        _, loss, objective, summaries_string = sess.run(train_fetch_g, feed_dict=feed_dict)
+                        elapsed =  time.time() - start
+                        print "Train Step G: %d Elapsed Time: %g Objective: %g \n" % (i, elapsed, objective)
+                        if summaries:
+                            train_writer.add_summary(summaries_string, ii)
+                            train_writer.flush()
 
-                for _ in range(d_steps):
-                    ii += 1
-                    start = time.time()
-                    _, loss, objective, summaries_string = sess.run(train_fetch_d, feed_dict=feed_dict)
-                    elapsed = time.time() - start
-                    print "Train Step D: %d Elapsed Time: %g Objective: %g \n" % (i, elapsed, objective)
-                    if summaries:
-                        train_writer.add_summary(summaries_string, ii)
-                        train_writer.flush()
-                for _ in range(g_steps):
-                    ii += 1
-                    start = time.time()
-                    _, loss, objective, summaries_string = sess.run(train_fetch_g, feed_dict=feed_dict)
-                    elapsed =  time.time() - start
-                    print "Train Step G: %d Elapsed Time: %g Objective: %g \n" % (i, elapsed, objective)
-                    if summaries:
-                        train_writer.add_summary(summaries_string, ii)
-                        train_writer.flush()
-
-                if not i % validation_interval:
-                    start = time.time()
-                    v_dice, summaries_string = sess.run([self.val_dice, val_merged_summaries])
-                    elapsed =  time.time() - start
-                    print "Validation Step: %d Elapsed Time: %g Dice: %g\n" % (i, elapsed, v_dice)
-                    if summaries:
-                        val_writer.add_summary(summaries_string, ii)
+                    if not i % validation_interval:
+                        start = time.time()
+                        v_dice, summaries_string = sess.run([self.val_dice, val_merged_summaries])
+                        elapsed =  time.time() - start
+                        print "Validation Step: %d Elapsed Time: %g Dice: %g\n" % (i, elapsed, v_dice)
+                        if summaries:
+                            val_writer.add_summary(summaries_string, ii)
+                            val_writer.flush()
+                    if not i % save_checkpoint_interval:
+                        save_path = saver.save(sess, os.path.join(save_dir, "model_%d.ckpt") % i)
+                        print("Model saved in file: %s" % save_path)
+                    if not i % plot_examples_interval:
+                        fetch = sess.run(val_merged_image_summaries)
+                        val_writer.add_summary(fetch, i)
                         val_writer.flush()
-                if not i % save_checkpoint_interval:
+                except:
                     save_path = saver.save(sess, os.path.join(save_dir, "model_%d.ckpt") % i)
-                    print("Model saved in file: %s" % save_path)
-                if not i % plot_examples_interval:
-                    fetch = sess.run(self.val_image_summary)
-                    val_writer.add_summary(fetch, i)
-                    val_writer.flush()
+                    print("Model saved in file: %s Becuase of error" % save_path)
+                    return 
                     """
                     plt.figure(1)
                     plt.imshow(fetch[0][0][:, :, 0])
@@ -393,6 +398,7 @@ class GANTrainer(object):
                                          tf.add(tf.reduce_sum(test_union, [1,2]), eps)))
         saver = tf.train.Saver(var_list=tf.global_variables(), allow_empty=True)
         with tf.Session() as sess:
+
             sess.run(tf.global_variables_initializer())
             tf.train.start_queue_runners(sess)
             saver.restore(sess, chekpoint_path)
