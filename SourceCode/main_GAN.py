@@ -8,6 +8,7 @@ import os
 import re
 import time
 import numpy as np
+import scipy.misc
 try:
     import matplotlib.pyplot as plt
 except:
@@ -17,16 +18,20 @@ __author__ = 'assafarbelle'
 DATA_DIR = os.environ.get('DATA_DIR','/Users/assafarbelle/Google Drive/PhD/DeepSegmentation/Data')
 SNAPSHOT_DIR = os.environ.get('SNAPSHOT_DIR','/Users/assafarbelle/Documents/PhD/Snapshots')
 LOG_DIR = os.environ.get('LOG_DIR','/Users/assafarbelle/Documents/PhD/Tensorboard')
+OUT_DIR = os.environ.get('LOG_DIR','/Users/assafarbelle/Documents/PhD/Output')
 restore = True
+data_set_name = 'Alon_Full_All' # Alon_Small, Alon_Large, Alon_Full
 run_num = '2'
-base_folder = os.path.join(DATA_DIR, 'Alon_Full/')
+base_folder = os.path.join(DATA_DIR, data_set_name+'/')
 train_filename = os.path.join(base_folder, 'test.csv')
 val_filename = os.path.join(base_folder, 'val.csv')
-test_filename = os.path.join(base_folder, 'train.csv')
-image_size = (256,160, 1)
+test_filename = os.path.join(base_folder, 'test.csv')
+image_size = (512,640, 1)
+# image_size = (256,160, 1)
 # image_size = (64, 64, 1)
-save_dir = os.path.join(SNAPSHOT_DIR, 'Alon_Full', 'GAN', run_num)
-summaries_dir_name = os.path.join(LOG_DIR, 'Alon_Full', 'GAN', run_num)
+save_dir = os.path.join(SNAPSHOT_DIR, data_set_name, 'GAN', run_num)
+out_dir = os.path.join(OUT_DIR, data_set_name, 'GAN', run_num)
+summaries_dir_name = os.path.join(LOG_DIR, data_set_name, 'GAN', run_num)
 
 if not os.path.exists(save_dir):
     os.makedirs(save_dir)
@@ -152,12 +157,12 @@ class GANTrainer(object):
         self.val_filenames = val_filenames if isinstance(val_filenames, list) else [val_filenames]
         self.test_filenames = test_filenames if isinstance(test_filenames, list) else [test_filenames]
         self.summaries_dir = summaries_dir
-        self.train_csv_reader = CSVSegReader(self.train_filenames, base_folder=base_folder, image_size=image_size,
-                                             capacity=70, min_after_dequeue=10)
-        self.val_csv_reader = CSVSegReader(self.val_filenames, base_folder=base_folder, image_size=image_size,
-                                           capacity=70, min_after_dequeue=10)
+        #self.train_csv_reader = CSVSegReader(self.train_filenames, base_folder=base_folder, image_size=image_size,
+        #                                     capacity=70, min_after_dequeue=10)
+        #self.val_csv_reader = CSVSegReader(self.val_filenames, base_folder=base_folder, image_size=image_size,
+        #                                   capacity=70, min_after_dequeue=10)
         self.test_csv_reader = CSVSegReader(self.test_filenames, base_folder=base_folder, image_size=image_size,
-                                           capacity=70, min_after_dequeue=10)
+                                           capacity=70, min_after_dequeue=10, random=False)
         # Set variable for net and losses
         self.net = None
         self.batch_loss = None
@@ -182,8 +187,8 @@ class GANTrainer(object):
 
     def build(self, batch_size=1):
 
-        train_image_batch_gan, train_seg_batch_gan = self.train_csv_reader.get_batch(batch_size)
-        train_image_batch, train_seg_batch = self.train_csv_reader.get_batch(batch_size)
+        train_image_batch_gan, train_seg_batch_gan, _ = self.train_csv_reader.get_batch(batch_size)
+        train_image_batch, train_seg_batch, _ = self.train_csv_reader.get_batch(batch_size)
 
         val_image_batch_gan, val_seg_batch_gan = self.val_csv_reader.get_batch(batch_size)
         val_image_batch, val_seg_batch = self.val_csv_reader.get_batch(batch_size)
@@ -363,7 +368,7 @@ class GANTrainer(object):
 
     def validate_checkpoint(self, chekpoint_path, batch_size):
 
-        test_image_batch_gan, test_seg_batch_gan = self.test_csv_reader.get_batch(batch_size)
+        test_image_batch_gan, test_seg_batch_gan, filename_batch = self.test_csv_reader.get_batch(batch_size)
         net_g = SegNetG(test_image_batch_gan)
         with tf.variable_scope('net_g'):
             gan_seg_batch, crop_size = net_g.build(False)
@@ -381,6 +386,7 @@ class GANTrainer(object):
             sess.run(tf.global_variables_initializer())
             tf.train.start_queue_runners(sess)
             saver.restore(sess, chekpoint_path)
+            print('Showing Images (Close figures to continue to next example)')
             for _ in range(3):
                 dice, image, seg, gan_seg = sess.run([test_dice, croped_image, croped_seg, gan_seg_batch])
                 for i in range(image.shape[0]):
@@ -394,8 +400,34 @@ class GANTrainer(object):
                         plt.imshow(S)
                         plt.figure(3)
                         plt.imshow(G)
-                        time.sleep(5)
                         plt.show()
+    def write_full_output_from_checkpoint(self, chekpoint_path, batch_size):
+
+        test_image_batch_gan, test_seg_batch_gan, filename_batch = self.test_csv_reader.get_batch(batch_size)
+        net_g = SegNetG(test_image_batch_gan)
+        with tf.variable_scope('net_g'):
+            gan_seg_batch, crop_size = net_g.build(False)
+        target_hw = gan_seg_batch.get_shape().as_list()[1:3]
+        croped_image = tf.slice(test_image_batch_gan, [0, crop_size, crop_size, 0], [-1, target_hw[0], target_hw[1], -1])
+        croped_seg = tf.slice(test_seg_batch_gan, [0, crop_size, crop_size, 0], [-1, target_hw[0], target_hw[1], -1])
+        eps = tf.constant(np.finfo(np.float32).eps)
+        test_hard_seg = tf.round(gan_seg_batch)
+        test_intersection = tf.mul(croped_seg, test_hard_seg)
+        test_union = tf.sub(tf.add(croped_seg, test_hard_seg), test_intersection)
+        test_dice = tf.reduce_mean(tf.div(tf.add(tf.reduce_sum(test_intersection, [1,2]), eps),
+                                         tf.add(tf.reduce_sum(test_union, [1,2]), eps)))
+        saver = tf.train.Saver(var_list=tf.global_variables(), allow_empty=True)
+        with tf.Session() as sess:
+            sess.run(tf.global_variables_initializer())
+            tf.train.start_queue_runners(sess)
+            saver.restore(sess, chekpoint_path)
+            while True:
+                gan_seg, file_name = sess.run([gan_seg_batch, filename_batch])
+                for i in range(gan_seg.shape[0]):
+                    G = np.squeeze(gan_seg[i])
+                    if not os.path.exists(os.path.dirname(os.path.join(out_dir,file_name[0][2:]))):
+                        os.makedirs(os.path.dirname(os.path.join(out_dir,file_name[0][2:])))
+                    scipy.misc.toimage(G, cmin=0.0, cmax=1.).save(os.path.join(out_dir,file_name[0][2:]))
 
 
 
@@ -406,8 +438,8 @@ print __name__
 if __name__ == "__main__":
     print "Start"
     trainer = GANTrainer(train_filename, val_filename, test_filename, summaries_dir_name)
-    """
-    trainer.validate_checkpoint('/Users/assafarbelle/Documents/PhD/Snapshots/model_8100.ckpt', 3)
+    trainer.write_full_output_from_checkpoint('/Users/assafarbelle/Documents/PhD/Snapshots/model_8100.ckpt', 1)
+    # trainer.validate_checkpoint('/Users/assafarbelle/Documents/PhD/Snapshots/model_8100.ckpt', 3)
     """
     print "Build Trainer"
     trainer.build(batch_size=30)
@@ -415,6 +447,6 @@ if __name__ == "__main__":
     trainer.train(lr_g=0.00001, lr_d=0.00001, g_steps=3, d_steps=1, l2_coeff=0.01, l1_coeff=0, max_itr=20000,
                   summaries=True, validation_interval=10,
                   save_checkpoint_interval=100, plot_examples_interval=1)
-
+    """
 
 
