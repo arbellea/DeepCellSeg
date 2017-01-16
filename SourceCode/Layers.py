@@ -38,6 +38,43 @@ def conv(in_tensor,
 
     return out, kernel, b
 
+def conv2d_transpose(in_tensor,
+                     name,
+                     kx,
+                     ky,
+                     kout,
+                     stride=None,
+                     biased=True,
+                     kernel_initializer=None,
+                     biase_initializer=None,
+                     padding='VALID',
+                     ):
+
+
+    with tf.variable_scope(name) as scope:
+
+        in_shape = in_tensor.get_shape().as_list()[-1]
+        kernel_shape = [kx, ky, in_shape, kout]
+        if not stride:
+            stride = [1, 1, 1, 1]
+        elif isinstance(stride,int):
+            stride = [1,stride,stride,1]
+        elif isinstance(stride,list) and len(stride)==2:
+            stride = [1]+stride+[1]
+
+
+
+        kernel = tf.get_variable('weights', shape=kernel_shape, initializer=kernel_initializer)
+
+        if biased:
+            b = tf.get_variable('bias', kout, initializer=biase_initializer)
+            out = tf.add(tf.nn.conv2d_transpose(in_tensor, kernel, strides=stride, padding=padding), b, name=name)
+        else:
+            out = tf.nn.conv2d(in_tensor, kernel, strides=stride, padding=padding, name=name)
+            b = None
+
+    return out, kernel, b
+
 
 def fc(in_tensor,
          name,
