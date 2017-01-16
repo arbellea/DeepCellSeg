@@ -162,9 +162,9 @@ class GANTrainer(object):
         self.test_filenames = test_filenames if isinstance(test_filenames, list) else [test_filenames]
         self.summaries_dir = summaries_dir
         self.train_csv_reader = CSVSegReaderRandom(self.train_filenames, base_folder=base_folder, image_size=image_size,
-                                             capacity=200, min_after_dequeue=10)
+                                             capacity=200, min_after_dequeue=10, num_threads=8)
         self.val_csv_reader = CSVSegReaderRandom(self.val_filenames, base_folder=base_folder, image_size=image_size,
-                                           capacity=200, min_after_dequeue=10)
+                                           capacity=200, min_after_dequeue=10, num_threads=8)
         self.test_csv_reader = None # CSVSegReader(self.test_filenames, base_folder=test_base_folder, image_size=image_size,
 #                                           capacity=1, min_after_dequeue=11, random=False)
         # Set variable for net and losses
