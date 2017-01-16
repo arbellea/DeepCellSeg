@@ -362,7 +362,7 @@ class GANTrainer(object):
                 except:
                     save_path = saver.save(sess, os.path.join(save_dir, "model_%d.ckpt") % i)
                     print("Model saved in file: %s Becuase of error" % save_path)
-                    return 
+                    return
                     """
                     plt.figure(1)
                     plt.imshow(fetch[0][0][:, :, 0])
@@ -463,7 +463,7 @@ if __name__ == "__main__":
     print "Start Training"
     trainer.train(lr_g=0.00001, lr_d=0.00001, g_steps=3, d_steps=1, l2_coeff=0.01, l1_coeff=0, max_itr=20000,
                   summaries=True, validation_interval=10,
-                  save_checkpoint_interval=100, plot_examples_interval=30)
+                  save_checkpoint_interval=100, plot_examples_interval=15)
 
 
 
