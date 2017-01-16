@@ -18,7 +18,7 @@ __author__ = 'assafarbelle'
 DATA_DIR = os.environ.get('DATA_DIR','/Users/assafarbelle/Google Drive/PhD/DeepSegmentation/Data')
 SNAPSHOT_DIR = os.environ.get('SNAPSHOT_DIR','/Users/assafarbelle/Documents/PhD/Snapshots')
 LOG_DIR = os.environ.get('LOG_DIR','/Users/assafarbelle/Documents/PhD/Tensorboard')
-OUT_DIR = os.environ.get('LOG_DIR','/Users/assafarbelle/Documents/PhD/Output')
+OUT_DIR = os.environ.get('OUT_DIR','/Users/assafarbelle/Documents/PhD/Output')
 restore = True
 data_set_name = 'Alon_Full_With_Edge' # Alon_Small, Alon_Large, Alon_Full
 run_num = '2'
@@ -162,9 +162,9 @@ class GANTrainer(object):
         self.test_filenames = test_filenames if isinstance(test_filenames, list) else [test_filenames]
         self.summaries_dir = summaries_dir
         self.train_csv_reader = CSVSegReaderRandom(self.train_filenames, base_folder=base_folder, image_size=image_size,
-                                             capacity=30, min_after_dequeue=10)
+                                             capacity=200, min_after_dequeue=10)
         self.val_csv_reader = CSVSegReaderRandom(self.val_filenames, base_folder=base_folder, image_size=image_size,
-                                           capacity=30, min_after_dequeue=10)
+                                           capacity=200, min_after_dequeue=10)
         self.test_csv_reader = None # CSVSegReader(self.test_filenames, base_folder=test_base_folder, image_size=image_size,
 #                                           capacity=1, min_after_dequeue=11, random=False)
         # Set variable for net and losses
@@ -447,7 +447,7 @@ if __name__ == "__main__":
     # trainer.validate_checkpoint('/Users/assafarbelle/Documents/PhD/Snapshots/model_8100.ckpt', 3)
     """
     print "Build Trainer"
-    trainer.build(batch_size=10)
+    trainer.build(batch_size=70)
     print "Start Training"
     trainer.train(lr_g=0.00001, lr_d=0.00001, g_steps=3, d_steps=1, l2_coeff=0.01, l1_coeff=0, max_itr=20000,
                   summaries=True, validation_interval=10,
