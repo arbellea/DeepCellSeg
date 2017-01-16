@@ -278,6 +278,9 @@ class GANTrainer(object):
         self.val_objective_summary = [tf.summary.scalar('val/objective_d', self.val_batch_loss_d),
                                   tf.summary.scalar('val/objective_g', self.val_batch_loss_g),
                                       tf.summary.scalar('val/dice', val_dice)]
+        self.val_image_summary = [tf.summary.image('Raw', val_croped_image_gan),
+                                  tf.summary.image('GT', val_croped_seg_gan),
+                                  tf.summary.image('GAN', val_gan_seg_batch)]
 
         for g, v in grads_vars_d:
             self.hist_summaries.append(tf.summary.histogram(v.op.name + '/value', v))
@@ -352,8 +355,10 @@ class GANTrainer(object):
                     save_path = saver.save(sess, os.path.join(save_dir, "model_%d.ckpt") % i)
                     print("Model saved in file: %s" % save_path)
                 if plt and not i % plot_examples_interval:
-                    fetch = sess.run(self.val_fetch)
-
+                    fetch = sess.run(self.val_image_summary)
+                    val_writer.add_summary(fetch, i)
+                    val_writer.flush()
+                    """
                     plt.figure(1)
                     plt.imshow(fetch[0][0][:, :, 0])
                     plt.ion()
@@ -369,6 +374,7 @@ class GANTrainer(object):
                     plt.ion()
                     plt.show()
                     plt.pause(0.001)
+                    """
 
     def validate_checkpoint(self, chekpoint_path, batch_size):
 
@@ -451,7 +457,7 @@ if __name__ == "__main__":
     print "Start Training"
     trainer.train(lr_g=0.00001, lr_d=0.00001, g_steps=3, d_steps=1, l2_coeff=0.01, l1_coeff=0, max_itr=20000,
                   summaries=True, validation_interval=10,
-                  save_checkpoint_interval=100, plot_examples_interval=1)
+                  save_checkpoint_interval=100, plot_examples_interval=30)
 
 
 
