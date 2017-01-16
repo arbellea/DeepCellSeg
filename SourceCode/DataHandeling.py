@@ -149,8 +149,8 @@ class CSVSegReaderRandom(object):
 
         image_batch, seg_batch, filename_batch = tf.train.shuffle_batch([image, seg, file_name],
                                                                         batch_size=self.batch_size,
-                                                        num_threads=self.num_threads,
-                                                        capacity=self.capacity,
-                                                        min_after_dequeue=self.min_after_dequeue)
+                                                                        num_threads=self.num_threads,
+                                                                        capacity=self.capacity,
+                                                                        min_after_dequeue=self.min_after_dequeue)
 
         return image_batch, seg_batch, filename_batch
