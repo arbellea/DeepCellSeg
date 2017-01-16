@@ -48,6 +48,34 @@ class Network(object):
         return out
 
     @layer
+    def conv2d_transpose(self, name,
+             in_tensor,
+             kx,
+             ky,
+             kout,
+             stride=None,
+             biased=True,
+             kernel_initializer=None,
+             biase_initializer=None,
+             padding='VALID',
+             ):
+        out, w, b = Layers.conv2d_transpose(in_tensor,
+                                            name,
+                                            kx,
+                                            ky,
+                                            kout,
+                                            stride,
+                                            biased,
+                                            kernel_initializer,
+                                            biase_initializer,
+                                            padding,
+                                            )
+        self.weights.update({w.op.name: w})
+        if biased:
+            self.weights.update({b.op.name: b})
+        return out
+
+    @layer
     def fc(self, name,
            in_tensor,
            kout,
@@ -83,5 +111,11 @@ class Network(object):
     def sigmoid(self, name, in_tensor):
         return tf.sigmoid(in_tensor, name)
 
+    @layer
+    def argmax(self, name, in_tensor, axis):
+        return tf.argmax(in_tensor, axis=axis, name=name)
+    @layer
+    def softmax(self, name, in_tensor):
+        return tf.nn.softmax(in_tensor, name=name)
 
 __author__ = 'assafarbelle'
