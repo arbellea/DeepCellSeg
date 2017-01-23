@@ -452,12 +452,13 @@ class GANTrainer(object):
                             os.makedirs(os.path.dirname(os.path.join(out_dir, file_name[0][2:])))
                         scipy.misc.toimage(gan_seq_squeeze, cmin=0.0, cmax=1.).save(os.path.join(out_dir,
                                                                                                  file_name[0][2:]))
+                        print "Saved File: {}".format(file_name[0][2:])
                 coord.request_stop()
                 coord.join(threads)
             except:
                 coord.request_stop()
                 coord.join(threads)
-
+                print "Stopped Saving Files"
 
 if __name__ == "__main__":
     print "Start"
