@@ -476,3 +476,5 @@ if __name__ == "__main__":
         trainer.write_full_output_from_checkpoint(chkpt_full_filename, 1)
     else:
         print "Could not load any checkpoint"
+    print "Done!"
+
