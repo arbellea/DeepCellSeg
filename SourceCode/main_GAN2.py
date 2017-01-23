@@ -445,11 +445,16 @@ class GANTrainer(object):
             saver.restore(sess, chekpoint_path)
             try:
                 while True:
+                    print "A"
                     gan_seg, file_name = sess.run([gan_seg_batch, filename_batch])
+                    print "B"
                     for i in range(gan_seg.shape[0]):
+                        print i
                         gan_seq_squeeze = np.squeeze(gan_seg[i])
+                        print i
                         if not os.path.exists(os.path.dirname(os.path.join(out_dir, file_name[0][2:]))):
                             os.makedirs(os.path.dirname(os.path.join(out_dir, file_name[0][2:])))
+                            print "made dir"
                         scipy.misc.toimage(gan_seq_squeeze, cmin=0.0, cmax=1.).save(os.path.join(out_dir,
                                                                                                  file_name[0][2:]))
                         print "Saved File: {}".format(file_name[0][2:])
