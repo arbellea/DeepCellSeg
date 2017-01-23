@@ -10,7 +10,7 @@ __author__ = 'assafarbelle'
 
 class CSVSegReader(object):
 
-    def __init__(self, filenames, base_folder='.', image_size=(64,64,1), num_threads=4,
+    def __init__(self, filenames, base_folder='.', image_size=(64, 64, 1), num_threads=4,
                  capacity=20, min_after_dequeue=10, random=True):
         """
         CSVSegReader is a class that reads csv files containing paths to input image and segmentation image and outputs
@@ -25,7 +25,7 @@ class CSVSegReader(object):
             min_after_dequeue: the minimum example in the queue after a dequeue op. ensures good mixing
         """
         self.reader = tf.TextLineReader()
-        num_epochs = 1 if random else None
+        num_epochs = None if random else 1
         self.input_queue = tf.train.string_input_producer(filenames, num_epochs=num_epochs)
         self.image_size = image_size
         self.batch_size = None
