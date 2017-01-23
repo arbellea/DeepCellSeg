@@ -10,7 +10,7 @@ import numpy as np
 import scipy.misc
 try:
     import matplotlib.pyplot as plt
-except:
+except ImportError:
     plt = None
 __author__ = 'assafarbelle'
 
@@ -311,6 +311,7 @@ class GANTrainer(object):
         else:
             train_merged_summaries = tf.no_op()
             val_merged_summaries = tf.no_op()
+            val_merged_image_summaries = tf.no_op()
 
         saver = tf.train.Saver(tf.global_variables())
 
@@ -361,7 +362,7 @@ class GANTrainer(object):
                         if summaries:
                             val_writer.add_summary(summaries_string, ii)
                             val_writer.flush()
-                    if not i % save_checkpoint_interval:
+                    if not i % save_checkpoint_interval or i == max_itr:
                         save_path = saver.save(sess, os.path.join(save_dir, "model_%d.ckpt") % i)
                         print("Model saved in file: %s" % save_path)
                     if not i % plot_examples_interval:
@@ -395,9 +396,10 @@ class GANTrainer(object):
                                           tf.add(tf.reduce_sum(test_union, [1, 2]), eps)))
         saver = tf.train.Saver(var_list=tf.global_variables(), allow_empty=True)
         coord = tf.train.Coordinator()
+        init_op = tf.group(tf.global_variables_initializer(), tf.local_variables_initializer())
         with tf.Session() as sess:
 
-            sess.run(tf.global_variables_initializer())
+            sess.run(init_op)
             threads = tf.train.start_queue_runners(sess, coord=coord)
             saver.restore(sess, chekpoint_path)
             print('Showing Images (Close figures to continue to next example)')
@@ -436,8 +438,9 @@ class GANTrainer(object):
         #                                 tf.add(tf.reduce_sum(test_union, [1,2]), eps)))
         saver = tf.train.Saver(var_list=tf.global_variables(), allow_empty=True)
         coord = tf.train.Coordinator()
+        init_op = tf.group(tf.global_variables_initializer(), tf.local_variables_initializer())
         with tf.Session() as sess:
-            sess.run(tf.global_variables_initializer())
+            sess.run(init_op)
             threads = tf.train.start_queue_runners(sess, coord=coord)
             saver.restore(sess, chekpoint_path)
             try:
