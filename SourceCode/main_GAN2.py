@@ -315,10 +315,10 @@ class GANTrainer(object):
         saver = tf.train.Saver(tf.global_variables())
 
         coord = tf.train.Coordinator()
-
+        init_op = tf.group(tf.global_variables_initializer(), tf.local_variables_initializer())
         with tf.Session() as sess:
 
-            sess.run(tf.global_variables_initializer())
+            sess.run(init_op)
             t = 0
             if restore:
                 chkpnt_info = tf.train.get_checkpoint_state(save_dir)
