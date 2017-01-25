@@ -470,13 +470,48 @@ class GANTrainer(object):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Run GAN Segmentation')
-    parser.add_argument('-n','--example_num', help="Number of examples from train set")
+    parser.add_argument('-n', '--example_num', help="Number of examples from train set")
+    parser.add_argument('-r', '--restore', help="Restore from last checkpoint", action="store_true")
+    parser.add_argument('-N', '--run_name', help="Name of the run")
+    
     args = parser.parse_args()
     if args.example_num:
         example_num = int(args.example_num)
         print "Examples set to: {}".format(example_num)
     else:
         example_num = None
+
+    if args.restore:
+        restore = True
+    else:
+        restore = False
+
+    if args.run_name:
+        run_name = args.run_name
+    else:
+        run_name = 'default_run'
+
+    data_set_name = 'Alon_Full_With_Edge'  # Alon_Small, Alon_Large, Alon_Full
+
+    base_folder = os.path.join(DATA_DIR, data_set_name+'/')
+    train_filename = os.path.join(base_folder, 'train.csv')
+    val_filename = os.path.join(base_folder, 'val.csv')
+    test_filename = os.path.join(DATA_DIR, 'Alon_Full_All', 'test.csv')
+    test_base_folder = os.path.join(DATA_DIR, 'Alon_Full_All'+'/')
+    image_size = (512, 640, 1)
+    # image_size = (256,160, 1)
+    # image_size = (64, 64, 1)
+    save_dir = os.path.join(SNAPSHOT_DIR, data_set_name, 'GAN', run_name)
+    out_dir = os.path.join(OUT_DIR, data_set_name, 'GAN', run_name)
+    summaries_dir_name = os.path.join(LOG_DIR, data_set_name, 'GAN', run_name)
+
+    if not os.path.exists(save_dir):
+        os.makedirs(save_dir)
+    if not os.path.exists(summaries_dir_name):
+        os.makedirs(summaries_dir_name)
+
+
+
     print "Start"
     trainer = GANTrainer(train_filename, val_filename, test_filename, summaries_dir_name, num_examples=example_num)
     print "Build Trainer"
