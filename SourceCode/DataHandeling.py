@@ -146,7 +146,7 @@ class CSVSegReaderRandom(object):
 
 class CSVSegReaderRandom2(object):
 
-    def __init__(self, filename, base_folder='.', image_size=(), crop_size=(64, 64), num_threads=4,
+    def __init__(self, filenames, base_folder='.', image_size=(), crop_size=(64, 64), num_threads=4,
                  capacity=20, min_after_dequeue=10,
                  random_rotate=tf.random_uniform([], minval=0, maxval=2, dtype=tf.int32), num_examples=None):
         """
@@ -163,11 +163,12 @@ class CSVSegReaderRandom2(object):
         """
         raw_filenames = []
         seg_filenames = []
-        with open(filename, 'rb') as csv_file:
-            csv_reader = csv.reader(csv_file, delimiter=',', quotechar='|')
-            for row in csv_reader:
-                raw_filenames.append(row[0])
-                seg_filenames.append(row[1])
+        for filename in filenames:
+            with open(filename, 'rb') as csv_file:
+                csv_reader = csv.reader(csv_file, delimiter=',', quotechar='|')
+                for row in csv_reader:
+                    raw_filenames.append(row[0])
+                    seg_filenames.append(row[1])
         if not num_examples:
             pass
         elif isinstance(num_examples, int):
@@ -229,7 +230,7 @@ class CSVSegReaderRandom2(object):
 
 class CSVSegReader2(object):
 
-    def __init__(self, filename, base_folder='.', image_size=(64, 64, 1), num_threads=4,
+    def __init__(self, filenames, base_folder='.', image_size=(64, 64, 1), num_threads=4,
                  capacity=20, min_after_dequeue=10, num_examples=None, random=True):
         """
         CSVSegReader is a class that reads csv files containing paths to input image and segmentation image and outputs
@@ -246,11 +247,12 @@ class CSVSegReader2(object):
         num_epochs = None if random else 1
         raw_filenames = []
         seg_filenames = []
-        with open(filename, 'rb') as csv_file:
-            csv_reader = csv.reader(csv_file, delimiter=',', quotechar='|')
-            for row in csv_reader:
-                raw_filenames.append(row[0])
-                seg_filenames.append(row[1])
+        for filename in filenames:
+            with open(filename, 'rb') as csv_file:
+                csv_reader = csv.reader(csv_file, delimiter=',', quotechar='|')
+                for row in csv_reader:
+                    raw_filenames.append(row[0])
+                    seg_filenames.append(row[1])
         if not num_examples:
             pass
         elif isinstance(num_examples, int):
