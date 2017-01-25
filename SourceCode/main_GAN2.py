@@ -168,7 +168,7 @@ class GANTrainer(object):
         self.val_csv_reader = CSVSegReaderRandom2(self.val_filenames, base_folder=base_folder, image_size=image_size,
                                                   capacity=200, min_after_dequeue=10, num_threads=8)
         self.test_csv_reader = CSVSegReader2(self.test_filenames, base_folder=test_base_folder, image_size=image_size,
-                                             capacity=1, min_after_dequeue=11, random=False)
+                                             capacity=100, min_after_dequeue=10, random=False)
         # Set variable for net and losses
         self.net = None
         self.batch_loss_d = None
@@ -511,8 +511,6 @@ if __name__ == "__main__":
     if not os.path.exists(summaries_dir_name):
         os.makedirs(summaries_dir_name)
 
-
-
     print "Start"
     trainer = GANTrainer(train_filename, val_filename, test_filename, summaries_dir_name, num_examples=example_num)
     print "Build Trainer"
@@ -530,4 +528,3 @@ if __name__ == "__main__":
     else:
         print "Could not load any checkpoint"
     print "Done!"
-
