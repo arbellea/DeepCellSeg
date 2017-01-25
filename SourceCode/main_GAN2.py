@@ -1,7 +1,7 @@
 
 import tensorflow as tf
 from Network import Network
-from DataHandeling import CSVSegReader, CSVSegReaderRandom
+from DataHandeling import CSVSegReader2, CSVSegReaderRandom2
 # import utils
 import os
 import re
@@ -20,7 +20,7 @@ LOG_DIR = os.environ.get('LOG_DIR', '/Users/assafarbelle/Documents/PhD/Tensorboa
 OUT_DIR = os.environ.get('OUT_DIR', '/Users/assafarbelle/Documents/PhD/Output')
 restore = True
 data_set_name = 'Alon_Full_With_Edge'  # Alon_Small, Alon_Large, Alon_Full
-run_num = '3'
+run_num = '4'
 base_folder = os.path.join(DATA_DIR, data_set_name+'/')
 train_filename = os.path.join(base_folder, 'train.csv')
 val_filename = os.path.join(base_folder, 'val.csv')
@@ -160,11 +160,11 @@ class GANTrainer(object):
         self.val_filenames = val_filenames if isinstance(val_filenames, list) else [val_filenames]
         self.test_filenames = test_filenames if isinstance(test_filenames, list) else [test_filenames]
         self.summaries_dir = summaries_dir
-        self.train_csv_reader = CSVSegReaderRandom(self.train_filenames, base_folder=base_folder, image_size=image_size,
+        self.train_csv_reader = CSVSegReaderRandom2(self.train_filenames, base_folder=base_folder, image_size=image_size,
                                                    capacity=200, min_after_dequeue=10, num_threads=8)
-        self.val_csv_reader = CSVSegReaderRandom(self.val_filenames, base_folder=base_folder, image_size=image_size,
+        self.val_csv_reader = CSVSegReaderRandom2(self.val_filenames, base_folder=base_folder, image_size=image_size,
                                                  capacity=200, min_after_dequeue=10, num_threads=8)
-        self.test_csv_reader = CSVSegReader(self.test_filenames, base_folder=test_base_folder, image_size=image_size,
+        self.test_csv_reader = CSVSegReader2(self.test_filenames, base_folder=test_base_folder, image_size=image_size,
                                             capacity=1, min_after_dequeue=11, random=False)
         # Set variable for net and losses
         self.net = None
@@ -472,8 +472,8 @@ if __name__ == "__main__":
     trainer.build(batch_size=70)
     print "Start Training"
     trainer.train(lr_g=0.00001, lr_d=0.00001, g_steps=3, d_steps=1, l2_coeff=0.01, l1_coeff=0, max_itr=20000,
-                  summaries=True, validation_interval=10,
-                  save_checkpoint_interval=100, plot_examples_interval=15)
+                  summaries=True, validation_interval=50,
+                  save_checkpoint_interval=500, plot_examples_interval=200)
     print "Writing Output"
     output_chkpnt_info = tf.train.get_checkpoint_state(save_dir)
     if output_chkpnt_info:
