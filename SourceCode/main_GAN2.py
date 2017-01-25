@@ -8,6 +8,8 @@ import re
 import time
 import numpy as np
 import scipy.misc
+import argparse
+
 try:
     import matplotlib.pyplot as plt
 except ImportError:
@@ -154,18 +156,19 @@ class RibSegNet(Network):
 
 class GANTrainer(object):
 
-    def __init__(self, train_filenames, val_filenames, test_filenames, summaries_dir):
+    def __init__(self, train_filenames, val_filenames, test_filenames, summaries_dir, num_examples=None):
 
         self.train_filenames = train_filenames if isinstance(train_filenames, list) else [train_filenames]
         self.val_filenames = val_filenames if isinstance(val_filenames, list) else [val_filenames]
         self.test_filenames = test_filenames if isinstance(test_filenames, list) else [test_filenames]
         self.summaries_dir = summaries_dir
-        self.train_csv_reader = CSVSegReaderRandom2(self.train_filenames, base_folder=base_folder, image_size=image_size,
-                                                   capacity=200, min_after_dequeue=10, num_threads=8)
+        self.train_csv_reader = CSVSegReaderRandom2(self.train_filenames, base_folder=base_folder,
+                                                    image_size=image_size, capacity=200, min_after_dequeue=10,
+                                                    num_threads=8, num_examples=num_examples)
         self.val_csv_reader = CSVSegReaderRandom2(self.val_filenames, base_folder=base_folder, image_size=image_size,
-                                                 capacity=200, min_after_dequeue=10, num_threads=8)
+                                                  capacity=200, min_after_dequeue=10, num_threads=8)
         self.test_csv_reader = CSVSegReader2(self.test_filenames, base_folder=test_base_folder, image_size=image_size,
-                                            capacity=1, min_after_dequeue=11, random=False)
+                                             capacity=1, min_after_dequeue=11, random=False)
         # Set variable for net and losses
         self.net = None
         self.batch_loss_d = None
@@ -466,8 +469,15 @@ class GANTrainer(object):
                 print "Stopped Saving Files"
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description='Run GAN Segmentation')
+    parser.add_argument('-n','--example_num', help="Number of examples from train set")
+    args = parser.parse_args()
+    if args.example_num:
+        example_num = int(args.example_num)
+    else:
+        example_num = None
     print "Start"
-    trainer = GANTrainer(train_filename, val_filename, test_filename, summaries_dir_name)
+    trainer = GANTrainer(train_filename, val_filename, test_filename, summaries_dir_name, num_examples=example_num)
     print "Build Trainer"
     trainer.build(batch_size=70)
     print "Start Training"
