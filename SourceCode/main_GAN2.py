@@ -474,6 +474,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
     if args.example_num:
         example_num = int(args.example_num)
+        print "Examples set to: {}".format(example_num)
     else:
         example_num = None
     print "Start"
