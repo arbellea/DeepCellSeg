@@ -300,7 +300,7 @@ class GANTrainer(object):
             self.hist_summaries.append(tf.summary.histogram(v.op.name + '/value', v))
             self.hist_summaries.append(tf.summary.histogram(v.op.name + '/grad', g))
 
-    def train(self, lr_g=0.1, lr_d=0.1, g_steps=1, d_steps=3, l2_coeff=0.0001, l1_coeff=0.5, max_itr=100000,
+    def train(self, lr_g=0.1, lr_d=0.1, g_steps=1, d_steps=3, max_itr=100000,
               summaries=True, validation_interval=10,
               save_checkpoint_interval=200, plot_examples_interval=100):
 
@@ -325,11 +325,11 @@ class GANTrainer(object):
             sess.run(init_op)
             t = 0
             if restore:
-                chkpnt_info = tf.train.get_checkpoint_state(save_dir)
-                if chkpnt_info:
-                    chkpt_full_filename = chkpnt_info.model_checkpoint_path
-                    t = int(re.findall(r'\d+', os.path.basename(chkpt_full_filename))[0])+1
-                    saver.restore(sess, chkpt_full_filename)
+                chkpt_info = tf.train.get_checkpoint_state(save_dir)
+                if chkpt_info:
+                    chkpt_filename = chkpt_info.model_checkpoint_path
+                    t = int(re.findall(r'\d+', os.path.basename(chkpt_filename))[0])+1
+                    saver.restore(sess, chkpt_filename)
 
             threads = tf.train.start_queue_runners(sess, coord=coord)
             feed_dict = {self.LR_g: lr_g, self.LR_d: lr_d}
@@ -372,11 +372,11 @@ class GANTrainer(object):
                         fetch = sess.run(val_merged_image_summaries)
                         val_writer.add_summary(fetch, i)
                         val_writer.flush()
-                except:
+                except (ValueError, RuntimeError, KeyboardInterrupt):
                     coord.request_stop()
                     coord.join(threads)
                     save_path = saver.save(sess, os.path.join(save_dir, "model_%d.ckpt") % i)
-                    print("Model saved in file: %s Becuase of error" % save_path)
+                    print("Model saved in file: %s Because of error" % save_path)
                     return
             coord.request_stop()
             coord.join(threads)
@@ -463,7 +463,7 @@ class GANTrainer(object):
                         print "Saved File: {}".format(file_name[0][2:])
                 coord.request_stop()
                 coord.join(threads)
-            except:
+            except (ValueError, RuntimeError, KeyboardInterrupt):
                 coord.request_stop()
                 coord.join(threads)
                 print "Stopped Saving Files"
@@ -516,7 +516,7 @@ if __name__ == "__main__":
     print "Build Trainer"
     trainer.build(batch_size=70)
     print "Start Training"
-    trainer.train(lr_g=0.00001, lr_d=0.00001, g_steps=3, d_steps=1, l2_coeff=0.01, l1_coeff=0, max_itr=20000,
+    trainer.train(lr_g=0.00001, lr_d=0.00001, g_steps=3, d_steps=1, max_itr=20000,
                   summaries=True, validation_interval=50,
                   save_checkpoint_interval=500, plot_examples_interval=200)
     print "Writing Output"
