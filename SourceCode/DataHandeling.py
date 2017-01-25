@@ -172,6 +172,7 @@ class CSVSegReaderRandom2(object):
         if not num_examples:
             pass
         elif isinstance(num_examples, int):
+            num_examples = min(num_examples, len(raw_filenames))
             raw_filenames = raw_filenames[:num_examples]
             seg_filenames = seg_filenames[:num_examples]
         elif isinstance(num_examples, list):
