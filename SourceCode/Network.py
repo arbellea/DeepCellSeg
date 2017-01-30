@@ -12,7 +12,6 @@ def layer(op):
     return layer_decorated
 
 
-
 class Network(object):
 
     def __init__(self):
@@ -49,16 +48,16 @@ class Network(object):
 
     @layer
     def conv2d_transpose(self, name,
-             in_tensor,
-             kx,
-             ky,
-             kout,
-             stride=None,
-             biased=True,
-             kernel_initializer=None,
-             biase_initializer=None,
-             padding='VALID',
-             ):
+                         in_tensor,
+                         kx,
+                         ky,
+                         kout,
+                         stride=None,
+                         biased=True,
+                         kernel_initializer=None,
+                         biase_initializer=None,
+                         padding='VALID',
+                         ):
         out, w, b = Layers.conv2d_transpose(in_tensor,
                                             name,
                                             kx,
@@ -114,8 +113,12 @@ class Network(object):
     @layer
     def argmax(self, name, in_tensor, axis):
         return tf.argmax(in_tensor, axis=axis, name=name)
+
     @layer
     def softmax(self, name, in_tensor):
         return tf.nn.softmax(in_tensor, name=name)
 
+    @layer
+    def ge(self, name, in_tensor, thr):
+        tf.greater_equal(in_tensor, thr, name=name)
 __author__ = 'assafarbelle'

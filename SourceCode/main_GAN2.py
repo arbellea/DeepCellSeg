@@ -47,7 +47,7 @@ class SegNetG(Network):
         self.image_batch = image_batch
         super(SegNetG, self).__init__()
 
-    def build(self, phase_train):
+    def build(self, phase_train, use_edges=False):
         crop_size = 0
         # Layer 1
         kxy = 7
@@ -83,14 +83,21 @@ class SegNetG(Network):
 
         # Layer 5
         kxy = 1
-        kout = 3
+        if use_edges:
+            kout = 3
+        else:
+            kout = 1
         bn = self.batch_norm('bn5', relu, phase_train)
         conv = self.conv('conv5', bn, kxy, kxy, kout)
-        softmax = self.softmax('out', conv)
-        bg, fg, e = tf.unpack(softmax, num=3, axis=3)
-        out = tf.expand_dims(tf.add_n([fg, 2*e]), 3)
-
         crop_size += (kxy-1)/2
+        if use_edges:
+            softmax = self.softmax('out', conv)
+            bg, fg, edge = tf.unpack(softmax, num=3, axis=3)
+            out = tf.expand_dims(tf.add_n([fg, 2*edge]), 3)
+            self.argmax('prediction', softmax, 3)
+        else:
+            out = tf.sigmoid(conv, 'out')
+            self.ge('prediction', out, tf.constant(0.5))
 
         return out, crop_size
 
@@ -197,7 +204,7 @@ class GANTrainer(object):
         self.hist_summaries = []
         self.image_summaries = []
 
-    def build(self, batch_size=1):
+    def build(self, batch_size=1, use_edges=False):
 
         train_image_batch_gan, train_seg_batch_gan, _ = self.train_csv_reader.get_batch(batch_size)
         train_image_batch, train_seg_batch, _ = self.train_csv_reader.get_batch(batch_size)
@@ -210,12 +217,16 @@ class GANTrainer(object):
 
                 net_g = SegNetG(train_image_batch_gan)
                 with tf.variable_scope('net_g'):
-                    gan_seg_batch, crop_size = net_g.build(True)
+                    gan_seg_batch, crop_size = net_g.build(True, use_edges)
                 target_hw = gan_seg_batch.get_shape().as_list()[1:3]
                 cropped_image = tf.slice(train_image_batch, [0, crop_size, crop_size, 0],
                                          [-1, target_hw[0], target_hw[1], -1])
-                cropped_seg = tf.slice(train_seg_batch, [0, crop_size, crop_size, 0],
-                                       [-1, target_hw[0], target_hw[1], -1])
+                if use_edges:
+                    cropped_seg = tf.slice(train_seg_batch, [0, crop_size, crop_size, 0],
+                                           [-1, target_hw[0], target_hw[1], -1])
+                else:
+                    cropped_seg = tf.equal(tf.slice(train_seg_batch, [0, crop_size, crop_size, 0],
+                                           [-1, target_hw[0], target_hw[1], -1]), tf.constant(1))
                 cropped_image_gan = tf.slice(train_image_batch_gan,  [0, crop_size, crop_size, 0],
                                              [-1, target_hw[0], target_hw[1], -1])
 
@@ -242,7 +253,7 @@ class GANTrainer(object):
                 self.total_loss_g = self.batch_loss_g
 
             with tf.name_scope('val_tower0'):
-                val_net_g = SegNetG(val_image_batch_gan)
+                val_net_g = SegNetG(val_image_batch_gan, use_edges)
                 val_cropped_image = tf.slice(val_image_batch,  [0, crop_size, crop_size, 0],
                                              [-1, target_hw[0], target_hw[1], -1])
                 val_cropped_seg = tf.slice(val_seg_batch,  [0, crop_size, crop_size, 0],
@@ -252,7 +263,7 @@ class GANTrainer(object):
                 val_cropped_seg_gan = tf.slice(val_seg_batch_gan,  [0, crop_size, crop_size, 0],
                                                [-1, target_hw[0], target_hw[1], -1])
                 with tf.variable_scope('net_g'):
-                    val_gan_seg_batch, _ = val_net_g.build(False)
+                    val_gan_seg_batch, _ = val_net_g.build(False, use_edges)
                 val_full_batch_im = tf.concat(0, [val_cropped_image, val_cropped_image_gan])
                 val_full_batch_seg = tf.concat(0, [val_cropped_seg, val_gan_seg_batch])
                 val_full_batch_label = tf.concat(0, [tf.ones([batch_size, 1]), tf.zeros([batch_size, 1])])
@@ -264,9 +275,11 @@ class GANTrainer(object):
 
                 val_loss_g = tf.abs(tf.sub(val_loss_d, log2_const))
                 eps = tf.constant(np.finfo(np.float32).eps)
-                val_hard_seg = tf.round(val_gan_seg_batch)
-                val_intersection = tf.mul(val_cropped_seg_gan, val_hard_seg)
-                val_union = tf.sub(tf.add(val_cropped_seg_gan, val_hard_seg), val_intersection)
+                val_hard_seg = tf.equal(val_net_g.layers['prediction'], tf.constant(1))
+                gt_hard_set = tf.equal(val_cropped_seg_gan, tf.constant(1))
+                val_intersection = tf.mul(gt_hard_set, val_hard_seg)
+                val_union = tf.sub(tf.add(gt_hard_set, val_hard_seg), val_intersection)
+
                 val_dice = tf.reduce_mean(tf.div(tf.add(tf.reduce_sum(val_intersection, [1, 2]), eps),
                                                  tf.add(tf.reduce_sum(val_union, [1, 2]), eps)))
 
@@ -381,12 +394,12 @@ class GANTrainer(object):
             coord.request_stop()
             coord.join(threads)
 
-    def validate_checkpoint(self, chekpoint_path, batch_size):
+    def validate_checkpoint(self, chekpoint_path, batch_size, use_edges):
 
         test_image_batch_gan, test_seg_batch_gan, filename_batch = self.test_csv_reader.get_batch(batch_size)
         net_g = SegNetG(test_image_batch_gan)
         with tf.variable_scope('net_g'):
-            gan_seg_batch, crop_size = net_g.build(False)
+            gan_seg_batch, crop_size = net_g.build(False, use_edges)
         target_hw = gan_seg_batch.get_shape().as_list()[1:3]
         cropped_image = tf.slice(test_image_batch_gan, [0, crop_size, crop_size, 0],
                                  [-1, target_hw[0], target_hw[1], -1])
@@ -423,12 +436,12 @@ class GANTrainer(object):
             coord.request_stop()
             coord.join(threads)
 
-    def write_full_output_from_checkpoint(self, chekpoint_path, batch_size):
+    def write_full_output_from_checkpoint(self, chekpoint_path, batch_size, use_edges):
 
         test_image_batch_gan, test_seg_batch_gan, filename_batch = self.test_csv_reader.get_batch(batch_size)
         net_g = SegNetG(test_image_batch_gan)
         with tf.variable_scope('net_g'):
-            gan_seg_batch, crop_size = net_g.build(False)
+            gan_seg_batch, crop_size = net_g.build(False, use_edges)
         # target_hw = gan_seg_batch.get_shape().as_list()[1:3]
         # cropped_image = tf.slice(test_image_batch_gan, [0, crop_size, crop_size, 0],
         #                                                [-1, target_hw[0], target_hw[1], -1])
@@ -473,6 +486,7 @@ if __name__ == "__main__":
     parser.add_argument('-n', '--example_num', help="Number of examples from train set")
     parser.add_argument('-r', '--restore', help="Restore from last checkpoint", action="store_true")
     parser.add_argument('-N', '--run_name', help="Name of the run")
+    parser.add_argument('-e', '--use_edges', help="segment to foregorund, background and edge")
 
     args = parser.parse_args()
     print args
@@ -491,6 +505,11 @@ if __name__ == "__main__":
         run_name = args.run_name
     else:
         run_name = 'default_run'
+
+    if args.use_edges:
+        use_edges = True
+    else:
+        use_edges = False
 
     data_set_name = 'Alon_Full_With_Edge'  # Alon_Small, Alon_Large, Alon_Full
 
@@ -514,7 +533,7 @@ if __name__ == "__main__":
     print "Start"
     trainer = GANTrainer(train_filename, val_filename, test_filename, summaries_dir_name, num_examples=example_num)
     print "Build Trainer"
-    trainer.build(batch_size=70)
+    trainer.build(batch_size=70, use_edges=use_edges)
     print "Start Training"
     trainer.train(lr_g=0.00001, lr_d=0.00001, g_steps=3, d_steps=1, max_itr=20000,
                   summaries=True, validation_interval=50,
@@ -524,7 +543,7 @@ if __name__ == "__main__":
     if output_chkpnt_info:
         chkpt_full_filename = output_chkpnt_info.model_checkpoint_path
         print "Loading Checkpoint: {}".format(os.path.basename(chkpt_full_filename))
-        trainer.write_full_output_from_checkpoint(chkpt_full_filename, 1)
+        trainer.write_full_output_from_checkpoint(chkpt_full_filename, 1, use_edges)
     else:
         print "Could not load any checkpoint"
     print "Done!"
