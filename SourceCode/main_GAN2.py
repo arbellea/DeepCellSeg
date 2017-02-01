@@ -535,7 +535,7 @@ if __name__ == "__main__":
     print "Build Trainer"
     trainer.build(batch_size=70, use_edges=use_edges)
     print "Start Training"
-    trainer.train(lr_g=0.00001, lr_d=0.00001, g_steps=3, d_steps=1, max_itr=20000,
+    trainer.train(lr_g=0.00001, lr_d=0.00001, g_steps=300, d_steps=100, max_itr=20000,
                   summaries=True, validation_interval=50,
                   save_checkpoint_interval=500, plot_examples_interval=200)
     print "Writing Output"
