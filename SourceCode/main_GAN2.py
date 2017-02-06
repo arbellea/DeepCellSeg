@@ -282,7 +282,7 @@ class GANTrainer(object):
                 val_loss_g = tf.abs(tf.sub(val_loss_d, log2_const))
                 eps = tf.constant(np.finfo(np.float32).eps)
                 val_hard_seg = tf.equal(val_net_g.layers['prediction'], tf.constant(1.))
-                gt_hard_set = tf.equal(val_cropped_seg_gan, tf.constant(1.))
+                gt_hard_set = tf.equal(val_cropped_seg_gan, tf.constant(1.)) 
                 val_intersection = tf.mul(gt_hard_set, val_hard_seg)
                 val_union = tf.sub(tf.add(gt_hard_set, val_hard_seg), val_intersection)
 
