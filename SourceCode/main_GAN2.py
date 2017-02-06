@@ -225,8 +225,8 @@ class GANTrainer(object):
                     cropped_seg = tf.slice(train_seg_batch, [0, crop_size, crop_size, 0],
                                            [-1, target_hw[0], target_hw[1], -1])
                 else:
-                    cropped_seg = tf.equal(tf.slice(train_seg_batch, [0, crop_size, crop_size, 0],
-                                           [-1, target_hw[0], target_hw[1], -1]), tf.constant(1.))
+                    cropped_seg = tf.to_float(tf.equal(tf.slice(train_seg_batch, [0, crop_size, crop_size, 0],
+                                                                [-1, target_hw[0], target_hw[1], -1]), tf.constant(1.)))
                 cropped_image_gan = tf.slice(train_image_batch_gan,  [0, crop_size, crop_size, 0],
                                              [-1, target_hw[0], target_hw[1], -1])
 
@@ -244,7 +244,7 @@ class GANTrainer(object):
                 loss_d = tf.nn.sigmoid_cross_entropy_with_logits(net_d.layers['fc_out'], full_batch_label)
 
                 log2_const = tf.constant(0.6931)
-                #loss_g = tf.div(1., tf.maximum(loss_d, 0.01))
+                # loss_g = tf.div(1., tf.maximum(loss_d, 0.01))
                 loss_g = tf.nn.sigmoid_cross_entropy_with_logits(net_d_small.layers['fc_out'], small_batch_label)
 
                 update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
@@ -282,7 +282,7 @@ class GANTrainer(object):
                 val_loss_g = tf.abs(tf.sub(val_loss_d, log2_const))
                 eps = tf.constant(np.finfo(np.float32).eps)
                 val_hard_seg = tf.equal(val_net_g.layers['prediction'], tf.constant(1.))
-                gt_hard_set = tf.equal(val_cropped_seg_gan, tf.constant(1.)) 
+                gt_hard_set = tf.equal(val_cropped_seg_gan, tf.constant(1.))
                 val_intersection = tf.mul(gt_hard_set, val_hard_seg)
                 val_union = tf.sub(tf.add(gt_hard_set, val_hard_seg), val_intersection)
 
