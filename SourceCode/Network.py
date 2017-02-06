@@ -120,5 +120,5 @@ class Network(object):
 
     @layer
     def ge(self, name, in_tensor, thr):
-        tf.greater_equal(in_tensor, thr, name=name)
+        return tf.greater_equal(in_tensor, thr, name=name)
 __author__ = 'assafarbelle'
