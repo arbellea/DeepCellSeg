@@ -259,7 +259,7 @@ class GANTrainer(object):
                 self.total_loss_g = self.batch_loss_g
 
             with tf.name_scope('val_tower0'):
-                val_net_g = SegNetG(val_image_batch_gan, use_edges)
+                val_net_g = SegNetG(val_image_batch_gan)
                 val_cropped_image = tf.slice(val_image_batch,  [0, crop_size, crop_size, 0],
                                              [-1, target_hw[0], target_hw[1], -1])
                 val_cropped_seg = tf.slice(val_seg_batch,  [0, crop_size, crop_size, 0],
