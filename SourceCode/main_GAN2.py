@@ -226,20 +226,26 @@ class GANTrainer(object):
                                            [-1, target_hw[0], target_hw[1], -1])
                 else:
                     cropped_seg = tf.equal(tf.slice(train_seg_batch, [0, crop_size, crop_size, 0],
-                                           [-1, target_hw[0], target_hw[1], -1]), tf.constant(1))
+                                           [-1, target_hw[0], target_hw[1], -1]), tf.constant(1.))
                 cropped_image_gan = tf.slice(train_image_batch_gan,  [0, crop_size, crop_size, 0],
                                              [-1, target_hw[0], target_hw[1], -1])
 
                 full_batch_im = tf.concat(0, [cropped_image, cropped_image_gan])
                 full_batch_seg = tf.concat(0, [cropped_seg, gan_seg_batch])
                 full_batch_label = tf.concat(0, [tf.ones([batch_size, 1]), tf.zeros([batch_size, 1])])
+                small_batch_label = tf.ones([batch_size, 1])
 
                 net_d = RibSegNet(full_batch_im, full_batch_seg)
+                net_d_small = RibSegNet(cropped_image_gan, gan_seg_batch)
                 with tf.variable_scope('net_d'):
                     net_d.build(True)
+                    tf.get_variable_scope().reuse_variables()
+                    net_d_small.build(True)
                 loss_d = tf.nn.sigmoid_cross_entropy_with_logits(net_d.layers['fc_out'], full_batch_label)
+
                 log2_const = tf.constant(0.6931)
-                loss_g = tf.div(1., tf.maximum(loss_d, 0.01))
+                #loss_g = tf.div(1., tf.maximum(loss_d, 0.01))
+                loss_g = tf.nn.sigmoid_cross_entropy_with_logits(net_d_small.layers['fc_out'], small_batch_label)
 
                 update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
                 updates = tf.group(*update_ops) if update_ops else tf.no_op()
@@ -348,26 +354,32 @@ class GANTrainer(object):
             feed_dict = {self.LR_g: lr_g, self.LR_d: lr_d}
             train_fetch_d = [self.train_step_d, self.batch_loss_d, self.total_loss_d, train_merged_summaries]
             train_fetch_g = [self.train_step_g, self.batch_loss_g, self.total_loss_g, train_merged_summaries]
-            ii = t*(d_steps+g_steps)
+
+            train_d = True
             for i in range(t, max_itr):
+                if not i % (d_steps+g_steps):
+                    train_d = True
+                elif i % (d_steps+g_steps) == g_steps:
+                    train_d = False
+
                 try:
-                    for _ in range(d_steps):
-                        ii += 1
+                    if train_d:
+
                         start = time.time()
                         _, loss, objective, summaries_string = sess.run(train_fetch_d, feed_dict=feed_dict)
                         elapsed = time.time() - start
                         print "Train Step D: %d Elapsed Time: %g Objective: %g \n" % (i, elapsed, objective)
                         if summaries:
-                            train_writer.add_summary(summaries_string, ii)
+                            train_writer.add_summary(summaries_string, i)
                             train_writer.flush()
-                    for _ in range(g_steps):
-                        ii += 1
+                    else:
+
                         start = time.time()
                         _, loss, objective, summaries_string = sess.run(train_fetch_g, feed_dict=feed_dict)
                         elapsed = time.time() - start
                         print "Train Step G: %d Elapsed Time: %g Objective: %g \n" % (i, elapsed, objective)
                         if summaries:
-                            train_writer.add_summary(summaries_string, ii)
+                            train_writer.add_summary(summaries_string, i)
                             train_writer.flush()
 
                     if not i % validation_interval:
@@ -376,7 +388,7 @@ class GANTrainer(object):
                         elapsed = time.time() - start
                         print "Validation Step: %d Elapsed Time: %g Dice: %g\n" % (i, elapsed, v_dice)
                         if summaries:
-                            val_writer.add_summary(summaries_string, ii)
+                            val_writer.add_summary(summaries_string, i)
                             val_writer.flush()
                     if (not i % save_checkpoint_interval) or (i == max_itr-1):
                         save_path = saver.save(sess, os.path.join(save_dir, "model_%d.ckpt") % i)
@@ -461,13 +473,9 @@ class GANTrainer(object):
             saver.restore(sess, chekpoint_path)
             try:
                 while True:
-                    print "A"
                     gan_seg, file_name = sess.run([gan_seg_batch, filename_batch])
-                    print "B"
                     for i in range(gan_seg.shape[0]):
-                        print i
                         gan_seq_squeeze = np.squeeze(gan_seg[i])
-                        print i
                         if not os.path.exists(os.path.dirname(os.path.join(out_dir, file_name[0][2:]))):
                             os.makedirs(os.path.dirname(os.path.join(out_dir, file_name[0][2:])))
                             print "made dir"
@@ -537,7 +545,7 @@ if __name__ == "__main__":
     print "Start Training"
     trainer.train(lr_g=0.00001, lr_d=0.00001, g_steps=300, d_steps=100, max_itr=20000,
                   summaries=True, validation_interval=50,
-                  save_checkpoint_interval=500, plot_examples_interval=200)
+                  save_checkpoint_interval=500, plot_examples_interval=5000)
     print "Writing Output"
     output_chkpnt_info = tf.train.get_checkpoint_state(save_dir)
     if output_chkpnt_info:
