@@ -208,10 +208,12 @@ class GANTrainer(object):
         # Set variables for tensorboard summaries
         self.loss_summary = None
         self.val_loss_summary = None
-        self.objective_summary = None
+        self.objective_summary_d = None
+        self.objective_summary_g = None
         self.val_objective_summary = None
         self.val_image_summary = None
-        self.hist_summaries = []
+        self.hist_summaries_d = []
+        self.hist_summaries_g = []
         self.image_summaries = []
 
     def build(self, batch_size=1, use_edges=False):
@@ -291,12 +293,12 @@ class GANTrainer(object):
 
                 val_loss_g = tf.abs(tf.sub(val_loss_d, log2_const))
                 eps = tf.constant(np.finfo(np.float32).eps)
-                val_hard_seg = tf.equal(tf.to_float(val_net_g.layers['prediction']), tf.constant(1.))
+                val_hard_seg = tf.greater(tf.to_float(val_net_g.layers['prediction']), tf.constant(0.5))
                 gt_hard_set = tf.equal(val_cropped_seg_gan, tf.constant(1.))
                 val_intersection = tf.to_float(tf.logical_and(gt_hard_set, val_hard_seg))
                 val_union = tf.to_float(tf.logical_or(gt_hard_set, val_hard_seg))
 
-                val_dice = tf.reduce_mean(tf.div(tf.add(2*tf.reduce_sum(val_intersection, [1, 2]), eps),
+                val_dice = tf.reduce_mean(tf.div(tf.add(tf.reduce_sum(val_intersection, [1, 2]), eps),
                                                  tf.add(tf.reduce_sum(val_union, [1, 2]), eps)))
 
                 self.val_batch_loss_d = tf.reduce_mean(val_loss_d)
@@ -313,8 +315,8 @@ class GANTrainer(object):
         self.train_step_d = opt_d.apply_gradients(grads_vars_d)
         self.train_step_g = opt_g.apply_gradients(grads_vars_g)
 
-        self.objective_summary = [tf.summary.scalar('train/objective_d', self.total_loss_d),
-                                  tf.summary.scalar('train/objective_g', self.total_loss_g)]
+        self.objective_summary_d = [tf.summary.scalar('train/objective_d', self.total_loss_d)]
+        self.objective_summary_g = [tf.summary.scalar('train/objective_g', self.total_loss_g)]
         self.val_objective_summary = [tf.summary.scalar('val/objective_d', self.val_batch_loss_d),
                                       tf.summary.scalar('val/objective_g', self.val_batch_loss_g),
                                       tf.summary.scalar('val/dice', val_dice)]
@@ -323,18 +325,19 @@ class GANTrainer(object):
                                   tf.summary.image('GAN', val_gan_seg_batch)]
 
         for g, v in grads_vars_d:
-            self.hist_summaries.append(tf.summary.histogram(v.op.name + '/value', v))
-            self.hist_summaries.append(tf.summary.histogram(v.op.name + '/grad', g))
+            self.hist_summaries_d.append(tf.summary.histogram(v.op.name + '/value', v))
+            self.hist_summaries_d.append(tf.summary.histogram(v.op.name + '/grad', g))
         for g, v in grads_vars_g:
-            self.hist_summaries.append(tf.summary.histogram(v.op.name + '/value', v))
-            self.hist_summaries.append(tf.summary.histogram(v.op.name + '/grad', g))
+            self.hist_summaries_g.append(tf.summary.histogram(v.op.name + '/value', v))
+            self.hist_summaries_g.append(tf.summary.histogram(v.op.name + '/grad', g))
 
     def train(self, lr_g=0.1, lr_d=0.1, g_steps=1, d_steps=3, max_itr=100000,
               summaries=True, validation_interval=10,
               save_checkpoint_interval=200, plot_examples_interval=100):
 
         if summaries:
-            train_merged_summaries = tf.summary.merge(self.hist_summaries+self.objective_summary)
+            train_merged_summaries_d = tf.summary.merge(self.hist_summaries_d + self.objective_summary_d)
+            train_merged_summaries_g = tf.summary.merge(self.hist_summaries_g + self.objective_summary_g)
             val_merged_summaries = tf.summary.merge(self.val_objective_summary)
             val_merged_image_summaries = tf.summary.merge(self.val_image_summary)
             train_writer = tf.summary.FileWriter(os.path.join(self.summaries_dir, 'train'))
@@ -362,8 +365,8 @@ class GANTrainer(object):
 
             threads = tf.train.start_queue_runners(sess, coord=coord)
             feed_dict = {self.LR_g: lr_g, self.LR_d: lr_d}
-            train_fetch_d = [self.train_step_d, self.batch_loss_d, self.total_loss_d, train_merged_summaries]
-            train_fetch_g = [self.train_step_g, self.batch_loss_g, self.total_loss_g, train_merged_summaries]
+            train_fetch_d = [self.train_step_d, self.batch_loss_d, self.total_loss_d, train_merged_summaries_d]
+            train_fetch_g = [self.train_step_g, self.batch_loss_g, self.total_loss_g, train_merged_summaries_g]
 
             train_d = True
             for i in range(t, max_itr):
@@ -403,7 +406,7 @@ class GANTrainer(object):
                     if (not i % save_checkpoint_interval) or (i == max_itr-1):
                         save_path = saver.save(sess, os.path.join(save_dir, "model_%d.ckpt") % i)
                         print("Model saved in file: %s" % save_path)
-                    if not i % plot_examples_interval:
+                    if not i % plot_examples_interval or (i < 1000 and not i % (d_steps+g_steps)):
                         fetch = sess.run(val_merged_image_summaries)
                         val_writer.add_summary(fetch, i)
                         val_writer.flush()
@@ -553,7 +556,7 @@ if __name__ == "__main__":
     print "Build Trainer"
     trainer.build(batch_size=70, use_edges=use_edges)
     print "Start Training"
-    trainer.train(lr_g=0.00001, lr_d=0.00001, g_steps=300, d_steps=100, max_itr=20000,
+    trainer.train(lr_g=0.00001, lr_d=0.00001, g_steps=300, d_steps=100, max_itr=200000,
                   summaries=True, validation_interval=50,
                   save_checkpoint_interval=500, plot_examples_interval=5000)
     print "Writing Output"
