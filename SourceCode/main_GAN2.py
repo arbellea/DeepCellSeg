@@ -15,11 +15,21 @@ try:
 except ImportError:
     plt = None
 __author__ = 'assafarbelle'
+#DEFAULT_DATA_DIR = '/Users/assafarbelle/Google Drive/PhD/DeepSegmentation/Data'
+#DEFAULT_SNAPSHOT_DIR = '/Users/assafarbelle/Documents/PhD/Snapshots'
+#DEFAULT_LOG_DIR = '/Users/assafarbelle/Documents/PhD/Tensorboard'
+#DEFAULT_OUT_DIR = '/Users/assafarbelle/Documents/PhD/Output'
 
-DATA_DIR = os.environ.get('DATA_DIR', '/Users/assafarbelle/Google Drive/PhD/DeepSegmentation/Data')
-SNAPSHOT_DIR = os.environ.get('SNAPSHOT_DIR', '/Users/assafarbelle/Documents/PhD/Snapshots')
-LOG_DIR = os.environ.get('LOG_DIR', '/Users/assafarbelle/Documents/PhD/Tensorboard')
-OUT_DIR = os.environ.get('OUT_DIR', '/Users/assafarbelle/Documents/PhD/Output')
+DEFAULT_DATA_DIR = '/home/arbellea/test/Data'
+DEFAULT_SNAPSHOT_DIR = '/home/arbellea/test/Results/Snapshots'
+DEFAULT_LOG_DIR = '/home/arbellea/test/Results/Logs'
+DEFAULT_OUT_DIR = '/home/arbellea/test/Results/Output'
+
+
+DATA_DIR = os.environ.get('DATA_DIR', DEFAULT_DATA_DIR)
+SNAPSHOT_DIR = os.environ.get('SNAPSHOT_DIR', DEFAULT_SNAPSHOT_DIR)
+LOG_DIR = os.environ.get('LOG_DIR', DEFAULT_LOG_DIR)
+OUT_DIR = os.environ.get('OUT_DIR', DEFAULT_OUT_DIR)
 restore = True
 data_set_name = 'Alon_Full_With_Edge'  # Alon_Small, Alon_Large, Alon_Full
 run_num = '4'
@@ -47,12 +57,12 @@ class SegNetG(Network):
         self.image_batch = image_batch
         super(SegNetG, self).__init__()
 
-    def build(self, phase_train, use_edges=False):
+    def build(self, phase_train, reuse=None, use_edges=False):
         crop_size = 0
         # Layer 1
         kxy = 7
         kout = 16
-        bn = self.batch_norm('bn1', self.image_batch, phase_train)
+        bn = self.batch_norm('bn1', self.image_batch, phase_train, reuse)
         conv = self.conv('conv1', bn, kxy, kxy, kout)
         relu = self.leaky_relu('relu1', conv)
         crop_size += (kxy-1)/2
@@ -60,7 +70,7 @@ class SegNetG(Network):
         # Layer 2
         kxy = 5
         kout = 32
-        bn = self.batch_norm('bn2', relu, phase_train)
+        bn = self.batch_norm('bn2', relu, phase_train, reuse)
         conv = self.conv('conv2', bn, kxy, kxy, kout)
         relu = self.leaky_relu('relu2', conv)
         crop_size += (kxy-1)/2
@@ -68,7 +78,7 @@ class SegNetG(Network):
         # Layer 3
         kxy = 3
         kout = 64
-        bn = self.batch_norm('bn3', relu, phase_train)
+        bn = self.batch_norm('bn3', relu, phase_train, reuse)
         conv = self.conv('conv3', bn, kxy, kxy, kout)
         relu = self.leaky_relu('relu3', conv)
         crop_size += (kxy-1)/2
@@ -76,7 +86,7 @@ class SegNetG(Network):
         # Layer 4
         kxy = 1
         kout = 64
-        bn = self.batch_norm('bn4', relu, phase_train)
+        bn = self.batch_norm('bn4', relu, phase_train, reuse)
         conv = self.conv('conv4', bn, kxy, kxy, kout)
         relu = self.leaky_relu('relu4', conv)
         crop_size += (kxy-1)/2
@@ -87,7 +97,7 @@ class SegNetG(Network):
             kout = 3
         else:
             kout = 1
-        bn = self.batch_norm('bn5', relu, phase_train)
+        bn = self.batch_norm('bn5', relu, phase_train, reuse)
         conv = self.conv('conv5', bn, kxy, kxy, kout)
         crop_size += (kxy-1)/2
         if use_edges:
@@ -108,20 +118,20 @@ class RibSegNet(Network):
         self.seg_batch = seg_batch
         super(RibSegNet, self).__init__()
 
-    def build(self, phase_train):
+    def build(self, phase_train, reuse=None):
 
         def rib(name, left, right, center, kxy, kout, stride=None):
             # Left
-            bn_left = self.batch_norm('bn_left_' + name, left, phase_train)
+            bn_left = self.batch_norm('bn_left_' + name, left, phase_train, reuse)
             conv_left = self.conv('left_' + name, bn_left, kxy, kxy, kout, stride, biased=False)
             out_left = self.leaky_relu('relu_left_' + name, conv_left)
 
             # Right
-            bn_right = self.batch_norm('bn_right_' + name, right, phase_train)
+            bn_right = self.batch_norm('bn_right_' + name, right, phase_train, reuse)
             conv_right = self.conv('right_' + name, bn_right, kxy, kxy, kout, stride, biased=False)
             out_right = self.leaky_relu('relu_right_' + name, conv_right)
             # Center
-            bn_center = self.batch_norm('bn_center_' + name, center, phase_train)
+            bn_center = self.batch_norm('bn_center_' + name, center, phase_train, reuse)
             conv_center = self.conv('center' + name, bn_center, kxy, kxy, kout / 2, stride, biased=False)
             relu_center = self.leaky_relu('relu_center_' + name, conv_center)
             out_center = self.concat('center_out_' + name, [out_left, out_right, relu_center], dim=3)
@@ -240,7 +250,7 @@ class GANTrainer(object):
                 with tf.variable_scope('net_d'):
                     net_d.build(True)
                     tf.get_variable_scope().reuse_variables()
-                    net_d_small.build(True)
+                    net_d_small.build(False, reuse=True)
                 loss_d = tf.nn.sigmoid_cross_entropy_with_logits(net_d.layers['fc_out'], full_batch_label)
 
                 log2_const = tf.constant(0.6931)
@@ -269,7 +279,7 @@ class GANTrainer(object):
                 val_cropped_seg_gan = tf.slice(val_seg_batch_gan,  [0, crop_size, crop_size, 0],
                                                [-1, target_hw[0], target_hw[1], -1])
                 with tf.variable_scope('net_g'):
-                    val_gan_seg_batch, _ = val_net_g.build(False, use_edges)
+                    val_gan_seg_batch, _ = val_net_g.build(False, reuse=True, use_edges=use_edges)
                 val_full_batch_im = tf.concat(0, [val_cropped_image, val_cropped_image_gan])
                 val_full_batch_seg = tf.concat(0, [val_cropped_seg, val_gan_seg_batch])
                 val_full_batch_label = tf.concat(0, [tf.ones([batch_size, 1]), tf.zeros([batch_size, 1])])
@@ -359,7 +369,7 @@ class GANTrainer(object):
             for i in range(t, max_itr):
                 if not i % (d_steps+g_steps):
                     train_d = True
-                elif i % (d_steps+g_steps) == g_steps:
+                elif i % (d_steps+g_steps) == d_steps:
                     train_d = False
 
                 try:

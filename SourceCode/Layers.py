@@ -119,7 +119,7 @@ def max_pool(in_tensor, name, ksize=None, strides=None, padding='VALID'):
     return tf.nn.max_pool(in_tensor, ksize, strides, padding, name=name)
 
 
-def batch_norm(in_tensor, phase_train, name):
+def batch_norm(in_tensor, phase_train, name, reuse=None):
     """
     Batch normalization on convolutional maps.
     Ref.: http://stackoverflow.com/questions/33949786/how-could-i-use-batch-normalization-in-tensorflow
@@ -132,7 +132,7 @@ def batch_norm(in_tensor, phase_train, name):
         normed:      batch-normalized maps
     """
     with tf.variable_scope(name) as scope:
-       return tf.contrib.layers.batch_norm(in_tensor, is_training=phase_train, scope=scope)
+       return tf.contrib.layers.batch_norm(in_tensor, is_training=phase_train, scope=scope, reuse=reuse)
 
 
 #

@@ -98,9 +98,9 @@ class Network(object):
         return Layers.max_pool(in_tensor, name, ksize, strides, padding)
 
     @layer
-    def batch_norm(self, name, in_tensor, phase_train):
+    def batch_norm(self, name, in_tensor, phase_train, reuse=None):
 
-        return Layers.batch_norm(in_tensor, phase_train, name)
+        return Layers.batch_norm(in_tensor, phase_train, name, reuse)
 
     @layer
     def concat(self, name, in_tensor_list, dim=3):
