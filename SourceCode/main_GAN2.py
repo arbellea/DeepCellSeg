@@ -9,6 +9,7 @@ import time
 import numpy as np
 import scipy.misc
 import argparse
+import pdb
 
 try:
     import matplotlib.pyplot as plt
@@ -305,7 +306,7 @@ class GANTrainer(object):
                 self.val_batch_loss_d = tf.reduce_mean(val_loss_d)
                 self.val_batch_loss_g = tf.reduce_mean(val_loss_g)
                 self.val_dice = val_dice
-                self.val_fetch = [val_cropped_image_gan, val_cropped_seg_gan, val_gan_seg_batch]
+                self.val_fetch = [val_cropped_image_gan, gt_hard_set, val_gan_seg_batch]
 
         opt_d = tf.train.RMSPropOptimizer(self.LR_d)
         opt_g = tf.train.RMSPropOptimizer(self.LR_g)
@@ -345,7 +346,8 @@ class GANTrainer(object):
             #                                                  graph=tf.get_default_graph())
             val_writer = tf.summary.FileWriter(os.path.join(self.summaries_dir, 'val'))
         else:
-            train_merged_summaries = tf.no_op()
+            train_merged_summaries_g = tf.no_op()
+            train_merged_summaries_d = tf.no_op()
             val_merged_summaries = tf.no_op()
             val_merged_image_summaries = tf.no_op()
 
@@ -489,11 +491,11 @@ class GANTrainer(object):
                 while True:
                     gan_seg, file_name = sess.run([gan_seg_batch, filename_batch])
                     for i in range(gan_seg.shape[0]):
-                        gan_seq_squeeze = np.squeeze(gan_seg[i])
+                        gan_seg_squeeze = np.squeeze(gan_seg[i])
                         if not os.path.exists(os.path.dirname(os.path.join(out_dir, file_name[0][2:]))):
                             os.makedirs(os.path.dirname(os.path.join(out_dir, file_name[0][2:])))
                             print "made dir"
-                        scipy.misc.toimage(gan_seq_squeeze, cmin=0.0, cmax=1.).save(os.path.join(out_dir,
+                        scipy.misc.toimage(gan_seg_squeeze, cmin=0.0, cmax=1.).save(os.path.join(out_dir,
                                                                                                  file_name[0][2:]))
                         print "Saved File: {}".format(file_name[0][2:])
                 coord.request_stop()
@@ -532,6 +534,8 @@ if __name__ == "__main__":
         use_edges = True
     else:
         use_edges = False
+
+    pdb.set_trace()
 
     data_set_name = 'Alon_Full_With_Edge'  # Alon_Small, Alon_Large, Alon_Full
 
