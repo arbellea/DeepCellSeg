@@ -15,15 +15,16 @@ try:
 except ImportError:
     plt = None
 __author__ = 'assafarbelle'
-#DEFAULT_DATA_DIR = '/Users/assafarbelle/Google Drive/PhD/DeepSegmentation/Data'
-#DEFAULT_SNAPSHOT_DIR = '/Users/assafarbelle/Documents/PhD/Snapshots'
-#DEFAULT_LOG_DIR = '/Users/assafarbelle/Documents/PhD/Tensorboard'
-#DEFAULT_OUT_DIR = '/Users/assafarbelle/Documents/PhD/Output'
 
-DEFAULT_DATA_DIR = '/home/arbellea/test/Data'
-DEFAULT_SNAPSHOT_DIR = '/home/arbellea/test/Results/Snapshots'
-DEFAULT_LOG_DIR = '/home/arbellea/test/Results/Logs'
-DEFAULT_OUT_DIR = '/home/arbellea/test/Results/Output'
+DEFAULT_DATA_DIR = '/Users/assafarbelle/Google Drive/PhD/DeepSegmentation/Data'
+DEFAULT_SNAPSHOT_DIR = '/Users/assafarbelle/Documents/PhD/Snapshots'
+DEFAULT_LOG_DIR = '/Users/assafarbelle/Documents/PhD/Tensorboard'
+DEFAULT_OUT_DIR = '/Users/assafarbelle/Documents/PhD/Output'
+
+#DEFAULT_DATA_DIR = '/home/arbellea/test/Data'
+#DEFAULT_SNAPSHOT_DIR = '/home/arbellea/test/Results/Snapshots'
+#DEFAULT_LOG_DIR = '/home/arbellea/test/Results/Logs'
+#DEFAULT_OUT_DIR = '/home/arbellea/test/Results/Output'
 
 
 DATA_DIR = os.environ.get('DATA_DIR', DEFAULT_DATA_DIR)
@@ -556,7 +557,7 @@ if __name__ == "__main__":
     print "Build Trainer"
     trainer.build(batch_size=70, use_edges=use_edges)
     print "Start Training"
-    trainer.train(lr_g=0.00001, lr_d=0.00001, g_steps=300, d_steps=100, max_itr=200000,
+    trainer.train(lr_g=0.001, lr_d=0.001, g_steps=500, d_steps=300, max_itr=200000,
                   summaries=True, validation_interval=50,
                   save_checkpoint_interval=500, plot_examples_interval=5000)
     print "Writing Output"
