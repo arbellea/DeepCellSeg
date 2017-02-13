@@ -4,7 +4,7 @@ import tensorflow as tf
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimage
-import pdb
+
 __author__ = 'assafarbelle'
 
 
@@ -208,7 +208,6 @@ class CSVSegReaderRandom2(object):
         return image, seg, im_filename
 
     def get_batch(self, batch_size=1):
-        pdb.set_trace()
         self.batch_size = batch_size
         image, seg, file_name = self._get_image()
         concat = tf.concat(2, [image, seg])
