@@ -225,7 +225,7 @@ class GANTrainer(object):
 
         val_image_batch_gan, val_seg_batch_gan, _ = self.val_csv_reader.get_batch(batch_size)
         val_image_batch, val_seg_batch, _ = self.val_csv_reader.get_batch(batch_size)
-
+        pdb.set_trace()
         with tf.device('/cpu:0'):
             with tf.name_scope('tower0'):
 
@@ -535,7 +535,7 @@ if __name__ == "__main__":
     else:
         use_edges = False
 
-    pdb.set_trace()
+
 
     data_set_name = 'Alon_Full_With_Edge'  # Alon_Small, Alon_Large, Alon_Full
 
