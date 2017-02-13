@@ -513,7 +513,7 @@ if __name__ == "__main__":
     parser.add_argument('-n', '--example_num', help="Number of examples from train set")
     parser.add_argument('-r', '--restore', help="Restore from last checkpoint", action="store_true")
     parser.add_argument('-N', '--run_name', help="Name of the run")
-    parser.add_argument('-e', '--use_edges', help="segment to foregorund, background and edge")
+    parser.add_argument('-e', '--use_edges', help="segment to foregorund, background and edge", action="store_true")
 
     args = parser.parse_args()
     print args
