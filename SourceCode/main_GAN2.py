@@ -184,11 +184,11 @@ class GANTrainer(object):
         self.summaries_dir = summaries_dir
         self.train_csv_reader = CSVSegReaderRandom2(self.train_filenames, base_folder=base_folder,
                                                     image_size=image_size, capacity=200, min_after_dequeue=10,
-                                                    num_threads=8, num_examples=num_examples)
+                                                    num_threads=2, num_examples=num_examples)
         self.val_csv_reader = CSVSegReaderRandom2(self.val_filenames, base_folder=base_folder, image_size=image_size,
-                                                  capacity=200, min_after_dequeue=10, num_threads=8)
+                                                  capacity=100, min_after_dequeue=10, num_threads=2)
         self.test_csv_reader = CSVSegReader2(self.test_filenames, base_folder=test_base_folder, image_size=image_size,
-                                             capacity=100, min_after_dequeue=10, random=False)
+                                             capacity=100, min_after_dequeue=10, random=False, num_threads=2)
         # Set variable for net and losses
         self.net = None
         self.batch_loss_d = None
@@ -564,9 +564,9 @@ if __name__ == "__main__":
     print "Build Trainer"
     trainer.build(batch_size=70, use_edges=use_edges)
     print "Start Training"
-    trainer.train(lr_g=0.001, lr_d=0.001, g_steps=500, d_steps=300, max_itr=200000,
+    trainer.train(lr_g=0.001, lr_d=0.001, g_steps=40, d_steps=10, max_itr=200000,
                   summaries=True, validation_interval=50,
-                  save_checkpoint_interval=500, plot_examples_interval=5000)
+                  save_checkpoint_interval=500, plot_examples_interval=500)
     print "Writing Output"
     output_chkpnt_info = tf.train.get_checkpoint_state(save_dir)
     if output_chkpnt_info:
