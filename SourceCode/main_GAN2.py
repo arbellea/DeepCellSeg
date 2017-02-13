@@ -107,7 +107,7 @@ class SegNetG(Network):
             softmax = self.softmax('out', conv)
             bg, fg, edge = tf.unpack(softmax, num=3, axis=3)
             out = tf.expand_dims(tf.add_n([fg, 2*edge]), 3)
-            self.argmax('prediction', out, 3)
+            self.ge('prediction', out, tf.constant(0.5))
         else:
             out = tf.sigmoid(conv, 'out')
             self.ge('prediction', out, tf.constant(0.5))
