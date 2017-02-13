@@ -26,7 +26,7 @@ class CSVSegReader(object):
         """
         self.reader = tf.TextLineReader()
         num_epochs = None if random else 1
-        self.input_queue = tf.train.string_input_producer(filenames, num_epochs=num_epochs)
+        self.input_queue = tf.train.string_input_producer(filenames, num_epochs=num_epochs, seed =0 )
         self.image_size = image_size
         self.batch_size = None
         self.num_threads = num_threads
@@ -263,8 +263,8 @@ class CSVSegReader2(object):
             raw_filenames = [f_name for n, f_name in enumerate(raw_filenames) if n in num_examples]
             seg_filenames = [f_name for n, f_name in enumerate(seg_filenames) if n in num_examples]
 
-        self.raw_queue = tf.train.string_input_producer(raw_filenames, num_epochs=num_epochs)
-        self.seg_queue = tf.train.string_input_producer(seg_filenames, num_epochs=num_epochs)
+        self.raw_queue = tf.train.string_input_producer(raw_filenames, num_epochs=num_epochs, shuffle=random, seed=0)
+        self.seg_queue = tf.train.string_input_producer(seg_filenames, num_epochs=num_epochs, shuffle=random, seed=0)
 
         self.image_size = image_size
         self.batch_size = None
