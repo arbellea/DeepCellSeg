@@ -180,8 +180,8 @@ class CSVSegReaderRandom2(object):
             raw_filenames = [f_name for n, f_name in enumerate(raw_filenames) if n in num_examples]
             seg_filenames = [f_name for n, f_name in enumerate(seg_filenames) if n in num_examples]
 
-        self.raw_queue = tf.train.string_input_producer(raw_filenames)
-        self.seg_queue = tf.train.string_input_producer(seg_filenames)
+        self.raw_queue = tf.train.string_input_producer(raw_filenames, seed=0)
+        self.seg_queue = tf.train.string_input_producer(seg_filenames, seed=0)
 
         self.image_size = image_size
         self.crop_size = crop_size
