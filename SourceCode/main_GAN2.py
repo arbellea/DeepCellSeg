@@ -372,7 +372,9 @@ class GANTrainer(object):
             train_fetch_g = [self.train_step_g, self.batch_loss_g, self.total_loss_g, train_merged_summaries_g]
 
             train_d = True
+            pdb.set_trace()
             for i in range(t, max_itr):
+                pdb.set_trace()
                 if not i % (d_steps+g_steps):
                     train_d = True
                 elif i % (d_steps+g_steps) == d_steps:
