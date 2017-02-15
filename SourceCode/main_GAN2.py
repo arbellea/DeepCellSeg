@@ -10,23 +10,23 @@ import numpy as np
 import scipy.misc
 import argparse
 
-
-
 try:
     import matplotlib.pyplot as plt
 except ImportError:
     plt = None
 __author__ = 'assafarbelle'
 
+
 DEFAULT_DATA_DIR = '/Users/assafarbelle/Google Drive/PhD/DeepSegmentation/Data'
 DEFAULT_SNAPSHOT_DIR = '/Users/assafarbelle/Documents/PhD/Snapshots'
 DEFAULT_LOG_DIR = '/Users/assafarbelle/Documents/PhD/Tensorboard'
 DEFAULT_OUT_DIR = '/Users/assafarbelle/Documents/PhD/Output'
 
-#DEFAULT_DATA_DIR = '/home/arbellea/test/Data'
-#DEFAULT_SNAPSHOT_DIR = '/home/arbellea/test/Results/Snapshots'
-#DEFAULT_LOG_DIR = '/home/arbellea/test/Results/Logs'
-#DEFAULT_OUT_DIR = '/home/arbellea/test/Results/Output'
+if not os.path.exists(DEFAULT_DATA_DIR):
+    DEFAULT_DATA_DIR = '/home/arbellea/ess/Data'
+    DEFAULT_SNAPSHOT_DIR = '/home/arbellea/ess/Results/Snapshots'
+    DEFAULT_LOG_DIR = '/home/arbellea/ess/Results/Logs'
+    DEFAULT_OUT_DIR = '/home/arbellea/ess/Results/Output'
 
 
 DATA_DIR = os.environ.get('DATA_DIR', DEFAULT_DATA_DIR)
@@ -65,33 +65,33 @@ class SegNetG(Network):
         # Layer 1
         kxy = 7
         kout = 16
-        bn = self.batch_norm('bn1', self.image_batch, phase_train, reuse)
-        conv = self.conv('conv1', bn, kxy, kxy, kout)
-        relu = self.leaky_relu('relu1', conv)
+        conv = self.conv('conv1', self.image_batch, kxy, kxy, kout)
+        bn = self.batch_norm('bn1', conv, phase_train, reuse)
+        relu = self.leaky_relu('relu1', bn)
         crop_size += (kxy-1)/2
 
         # Layer 2
         kxy = 5
         kout = 32
-        bn = self.batch_norm('bn2', relu, phase_train, reuse)
-        conv = self.conv('conv2', bn, kxy, kxy, kout)
-        relu = self.leaky_relu('relu2', conv)
+        conv = self.conv('conv2', relu, kxy, kxy, kout)
+        bn = self.batch_norm('bn2', conv, phase_train, reuse)
+        relu = self.leaky_relu('relu2', bn)
         crop_size += (kxy-1)/2
 
         # Layer 3
         kxy = 3
         kout = 64
-        bn = self.batch_norm('bn3', relu, phase_train, reuse)
-        conv = self.conv('conv3', bn, kxy, kxy, kout)
-        relu = self.leaky_relu('relu3', conv)
+        conv = self.conv('conv3', relu, kxy, kxy, kout)
+        bn = self.batch_norm('bn3', conv, phase_train, reuse)
+        relu = self.leaky_relu('relu3', bn)
         crop_size += (kxy-1)/2
 
         # Layer 4
         kxy = 1
         kout = 64
-        bn = self.batch_norm('bn4', relu, phase_train, reuse)
-        conv = self.conv('conv4', bn, kxy, kxy, kout)
-        relu = self.leaky_relu('relu4', conv)
+        conv = self.conv('conv4', relu, kxy, kxy, kout)
+        bn = self.batch_norm('bn4', conv, phase_train, reuse)
+        relu = self.leaky_relu('relu4', bn)
         crop_size += (kxy-1)/2
 
         # Layer 5
@@ -106,8 +106,8 @@ class SegNetG(Network):
         if use_edges:
             softmax = self.softmax('out', conv)
             bg, fg, edge = tf.unpack(softmax, num=3, axis=3)
-            out = tf.expand_dims(tf.add_n([fg, 2*edge]), 3)
-            self.ge('prediction', out, tf.constant(0.5))
+            out = softmax  # tf.expand_dims(tf.add_n([fg, 2*edge]), 3)
+            self.ge('prediction', fg, tf.constant(0.5))
             self.layers['bg'] = bg
             self.layers['fg'] = fg
             self.layers['edge'] = edge
@@ -128,18 +128,21 @@ class RibSegNet(Network):
 
         def rib(name, left, right, center, kxy, kout, stride=None):
             # Left
-            bn_left = self.batch_norm('bn_left_' + name, left, phase_train, reuse)
-            conv_left = self.conv('left_' + name, bn_left, kxy, kxy, kout, stride, biased=False)
-            out_left = self.leaky_relu('relu_left_' + name, conv_left)
+
+            conv_left = self.conv('left_' + name, left, kxy, kxy, kout, stride, biased=False)
+            bn_left = self.batch_norm('bn_left_' + name, conv_left, phase_train, reuse)
+            out_left = self.leaky_relu('relu_left_' + name, bn_left)
 
             # Right
-            bn_right = self.batch_norm('bn_right_' + name, right, phase_train, reuse)
-            conv_right = self.conv('right_' + name, bn_right, kxy, kxy, kout, stride, biased=False)
-            out_right = self.leaky_relu('relu_right_' + name, conv_right)
+
+            conv_right = self.conv('right_' + name, right, kxy, kxy, kout, stride, biased=False)
+            bn_right = self.batch_norm('bn_right_' + name, conv_right, phase_train, reuse)
+            out_right = self.leaky_relu('relu_right_' + name, bn_right)
             # Center
-            bn_center = self.batch_norm('bn_center_' + name, center, phase_train, reuse)
-            conv_center = self.conv('center' + name, bn_center, kxy, kxy, kout / 2, stride, biased=False)
-            relu_center = self.leaky_relu('relu_center_' + name, conv_center)
+
+            conv_center = self.conv('center' + name, center, kxy, kxy, kout / 2, stride, biased=False)
+            bn_center = self.batch_norm('bn_center_' + name, conv_center, phase_train, reuse)
+            relu_center = self.leaky_relu('relu_center_' + name, bn_center)
             out_center = self.concat('center_out_' + name, [out_left, out_right, relu_center], dim=3)
 
             return out_left, out_right, out_center
@@ -242,6 +245,10 @@ class GANTrainer(object):
                 if use_edges:
                     cropped_seg = tf.slice(train_seg_batch, [0, crop_size, crop_size, 0],
                                            [-1, target_hw[0], target_hw[1], -1])
+                    seg_vec = tf.saturate_cast(tf.reshape(cropped_seg, [-1]), tf.uint8)
+                    seg_one_hot = tf.one_hot(seg_vec, 3)
+                    cropped_seg = tf.reshape(seg_one_hot, [-1, target_hw[0], target_hw[1], 3])
+
                 else:
                     cropped_seg = tf.to_float(tf.equal(tf.slice(train_seg_batch, [0, crop_size, crop_size, 0],
                                                                 [-1, target_hw[0], target_hw[1], -1]), tf.constant(1.)))
@@ -280,8 +287,17 @@ class GANTrainer(object):
                 val_net_g = SegNetG(val_image_batch_gan)
                 val_cropped_image = tf.slice(val_image_batch,  [0, crop_size, crop_size, 0],
                                              [-1, target_hw[0], target_hw[1], -1])
-                val_cropped_seg = tf.slice(val_seg_batch,  [0, crop_size, crop_size, 0],
+                if use_edges:
+                    val_cropped_seg = tf.slice(val_seg_batch, [0, crop_size, crop_size, 0],
                                            [-1, target_hw[0], target_hw[1], -1])
+                    val_seg_vec = tf.saturate_cast(tf.reshape(val_cropped_seg, [-1]), tf.uint8)
+                    val_seg_one_hot = tf.one_hot(val_seg_vec, 3)
+                    val_cropped_seg = tf.reshape(val_seg_one_hot, [-1, target_hw[0], target_hw[1], 3])
+
+                else:
+                    val_cropped_seg = tf.to_float(tf.equal(tf.slice(val_seg_batch, [0, crop_size, crop_size, 0],
+                                                                [-1, target_hw[0], target_hw[1], -1]), tf.constant(1.)))
+
                 val_cropped_image_gan = tf.slice(val_image_batch_gan,  [0, crop_size, crop_size, 0],
                                                  [-1, target_hw[0], target_hw[1], -1])
                 val_cropped_seg_gan = tf.slice(val_seg_batch_gan,  [0, crop_size, crop_size, 0],
@@ -299,7 +315,10 @@ class GANTrainer(object):
 
                 val_loss_g = tf.abs(tf.sub(val_loss_d, log2_const))
                 eps = tf.constant(np.finfo(np.float32).eps)
-                val_hard_seg = tf.greater(tf.to_float(val_net_g.layers['prediction']), tf.constant(0.5))
+                if use_edges:
+                    val_hard_seg = tf.expand_dims(tf.greater(tf.to_float(val_net_g.layers['fg']), tf.constant(0.5)),3)
+                else:
+                    val_hard_seg = tf.greater(tf.to_float(val_net_g.layers['prediction']), tf.constant(0.5))
                 gt_hard_set = tf.equal(val_cropped_seg_gan, tf.constant(1.))
                 val_intersection = tf.to_float(tf.logical_and(gt_hard_set, val_hard_seg))
                 val_union = tf.to_float(tf.logical_or(gt_hard_set, val_hard_seg))
@@ -504,8 +523,8 @@ class GANTrainer(object):
                         scipy.misc.toimage(gan_seg_squeeze, cmin=0.0, cmax=1.).save(os.path.join(out_dir,
                                                                                                  file_name[0][2:]))
                         print "Saved File: {}".format(file_name[0][2:])
-                coord.request_stop()
-                coord.join(threads)
+                # coord.request_stop()
+                # coord.join(threads)
             except (ValueError, RuntimeError, KeyboardInterrupt):
                 coord.request_stop()
                 coord.join(threads)
@@ -537,11 +556,9 @@ if __name__ == "__main__":
         run_name = 'default_run'
 
     if args.use_edges:
-        use_edges = True
+        use_edges_flag = True
     else:
-        use_edges = False
-
-
+        use_edges_flag = False
 
     data_set_name = 'Alon_Full_With_Edge'  # Alon_Small, Alon_Large, Alon_Full
 
@@ -565,7 +582,7 @@ if __name__ == "__main__":
     print "Start"
     trainer = GANTrainer(train_filename, val_filename, test_filename, summaries_dir_name, num_examples=example_num)
     print "Build Trainer"
-    trainer.build(batch_size=70, use_edges=use_edges)
+    trainer.build(batch_size=70, use_edges=use_edges_flag)
     print "Start Training"
     trainer.train(lr_g=0.001, lr_d=0.001, g_steps=40, d_steps=10, max_itr=200000,
                   summaries=True, validation_interval=50,
@@ -575,7 +592,7 @@ if __name__ == "__main__":
     if output_chkpnt_info:
         chkpt_full_filename = output_chkpnt_info.model_checkpoint_path
         print "Loading Checkpoint: {}".format(os.path.basename(chkpt_full_filename))
-        trainer.write_full_output_from_checkpoint(chkpt_full_filename, 1, use_edges)
+        trainer.write_full_output_from_checkpoint(chkpt_full_filename, 1, use_edges_flag)
     else:
         print "Could not load any checkpoint"
     print "Done!"
