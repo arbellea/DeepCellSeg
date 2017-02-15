@@ -289,19 +289,24 @@ class GANTrainer(object):
                                              [-1, target_hw[0], target_hw[1], -1])
                 if use_edges:
                     val_cropped_seg = tf.slice(val_seg_batch, [0, crop_size, crop_size, 0],
-                                           [-1, target_hw[0], target_hw[1], -1])
+                                               [-1, target_hw[0], target_hw[1], -1])
                     val_seg_vec = tf.saturate_cast(tf.reshape(val_cropped_seg, [-1]), tf.uint8)
                     val_seg_one_hot = tf.one_hot(val_seg_vec, 3)
                     val_cropped_seg = tf.reshape(val_seg_one_hot, [-1, target_hw[0], target_hw[1], 3])
+                    val_cropped_seg_gan = tf.slice(val_seg_batch_gan, [0, crop_size, crop_size, 0],
+                                               [-1, target_hw[0], target_hw[1], -1])
+                    val_seg_vec_gan = tf.saturate_cast(tf.reshape(val_cropped_seg_gan, [-1]), tf.uint8)
+                    val_seg_one_hot_gan = tf.one_hot(val_seg_vec_gan, 3)
+                    val_cropped_seg_gan = tf.reshape(val_seg_one_hot_gan, [-1, target_hw[0], target_hw[1], 3])
 
                 else:
                     val_cropped_seg = tf.to_float(tf.equal(tf.slice(val_seg_batch, [0, crop_size, crop_size, 0],
-                                                                [-1, target_hw[0], target_hw[1], -1]), tf.constant(1.)))
+                                                                    [-1, target_hw[0], target_hw[1], -1]),
+                                                           tf.constant(1.)))
 
                 val_cropped_image_gan = tf.slice(val_image_batch_gan,  [0, crop_size, crop_size, 0],
                                                  [-1, target_hw[0], target_hw[1], -1])
-                val_cropped_seg_gan = tf.slice(val_seg_batch_gan,  [0, crop_size, crop_size, 0],
-                                               [-1, target_hw[0], target_hw[1], -1])
+
                 with tf.variable_scope('net_g'):
                     val_gan_seg_batch, _ = val_net_g.build(False, reuse=True, use_edges=use_edges)
                 val_full_batch_im = tf.concat(0, [val_cropped_image, val_cropped_image_gan])
@@ -316,10 +321,11 @@ class GANTrainer(object):
                 val_loss_g = tf.abs(tf.sub(val_loss_d, log2_const))
                 eps = tf.constant(np.finfo(np.float32).eps)
                 if use_edges:
-                    val_hard_seg = tf.expand_dims(tf.greater(tf.to_float(val_net_g.layers['fg']), tf.constant(0.5)),3)
+                    val_hard_seg = tf.expand_dims(tf.greater(tf.to_float(val_net_g.layers['fg']), tf.constant(0.5)), 3)
+                    gt_hard_set = tf.expand_dims(val_cropped_seg_gan[:, :, :, 1], 3)
                 else:
                     val_hard_seg = tf.greater(tf.to_float(val_net_g.layers['prediction']), tf.constant(0.5))
-                gt_hard_set = tf.equal(val_cropped_seg_gan, tf.constant(1.))
+                    gt_hard_set = val_cropped_seg_gan
                 val_intersection = tf.to_float(tf.logical_and(gt_hard_set, val_hard_seg))
                 val_union = tf.to_float(tf.logical_or(gt_hard_set, val_hard_seg))
 
