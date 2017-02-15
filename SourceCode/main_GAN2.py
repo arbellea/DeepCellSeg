@@ -322,7 +322,7 @@ class GANTrainer(object):
                 eps = tf.constant(np.finfo(np.float32).eps)
                 if use_edges:
                     val_hard_seg = tf.expand_dims(tf.greater(tf.to_float(val_net_g.layers['fg']), tf.constant(0.5)), 3)
-                    gt_hard_set = tf.expand_dims(val_cropped_seg_gan[:, :, :, 1], 3)
+                    gt_hard_set = tf.expand_dims(tf.greater(val_cropped_seg_gan[:, :, :, 1], tf.constant(0.5)), 3)
                 else:
                     val_hard_seg = tf.greater(tf.to_float(val_net_g.layers['prediction']), tf.constant(0.5))
                     gt_hard_set = val_cropped_seg_gan
