@@ -232,8 +232,8 @@ class GANTrainer(object):
 
         val_image_batch_gan, val_seg_batch_gan, _ = self.val_csv_reader.get_batch(batch_size)
         val_image_batch, val_seg_batch, _ = self.val_csv_reader.get_batch(batch_size)
-
-        with tf.device('/cpu:0'):
+        device = '/gpu:{}'.format(gpu_num) if gpu_num else '/cpu:0'
+        with tf.device(device):
             with tf.name_scope('tower0'):
 
                 net_g = SegNetG(train_image_batch_gan)
@@ -542,7 +542,7 @@ if __name__ == "__main__":
     parser.add_argument('-r', '--restore', help="Restore from last checkpoint", action="store_true")
     parser.add_argument('-N', '--run_name', help="Name of the run")
     parser.add_argument('-e', '--use_edges', help="segment to foregorund, background and edge", action="store_true")
-
+    parser.add_argument('-g', '--gpu_num', help="Number of examples from train set")
     args = parser.parse_args()
     print args
     if args.example_num:
@@ -550,6 +550,12 @@ if __name__ == "__main__":
         print "Examples set to: {}".format(example_num)
     else:
         example_num = None
+
+    if args.gpu_num:
+        gpu_num = int(args.gpu_num)
+        print "GPU set to: {}".format(gpu_num)
+    else:
+        gpu_num = None
 
     if args.restore:
         restore = True
