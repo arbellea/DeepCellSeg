@@ -30,7 +30,7 @@ if not os.path.exists(DEFAULT_DATA_DIR):
 
 
 DATA_DIR = os.environ.get('DATA_DIR', DEFAULT_DATA_DIR)
-SNAPSHOT_DIR = os.environ.get('SNAPSHOT_DIR', DEFAULT_SNAPSHOT_DIR)
+    SNAPSHOT_DIR = os.environ.get('SNAPSHOT_DIR', DEFAULT_SNAPSHOT_DIR)
 LOG_DIR = os.environ.get('LOG_DIR', DEFAULT_LOG_DIR)
 OUT_DIR = os.environ.get('OUT_DIR', DEFAULT_OUT_DIR)
 restore = True
@@ -543,6 +543,7 @@ if __name__ == "__main__":
     parser.add_argument('-N', '--run_name', help="Name of the run")
     parser.add_argument('-e', '--use_edges', help="segment to foregorund, background and edge", action="store_true")
     parser.add_argument('-g', '--gpu_num', help="Number of examples from train set")
+    parser.add_argument('-b', '--batch_size', help="Number of examples per batch")
     args = parser.parse_args()
     print args
     if args.example_num:
@@ -551,6 +552,12 @@ if __name__ == "__main__":
     else:
         example_num = None
 
+    if args.batch_size:
+        batch_size = int(args.batch_size)
+        print "Batch Size set to: {}".format(batch_size)
+    else:
+        batch_size = 70
+        print "Batch Size set to: {}".format(batch_size)
     if args.gpu_num:
         gpu_num = int(args.gpu_num)
         print "GPU set to: {}".format(gpu_num)
@@ -594,7 +601,7 @@ if __name__ == "__main__":
     print "Start"
     trainer = GANTrainer(train_filename, val_filename, test_filename, summaries_dir_name, num_examples=example_num)
     print "Build Trainer"
-    trainer.build(batch_size=70, use_edges=use_edges_flag)
+    trainer.build(batch_size=batch_size, use_edges=use_edges_flag)
     print "Start Training"
     trainer.train(lr_g=0.001, lr_d=0.001, g_steps=40, d_steps=10, max_itr=200000,
                   summaries=True, validation_interval=50,
