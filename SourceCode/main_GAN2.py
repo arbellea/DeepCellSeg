@@ -232,7 +232,7 @@ class GANTrainer(object):
 
         val_image_batch_gan, val_seg_batch_gan, _ = self.val_csv_reader.get_batch(batch_size)
         val_image_batch, val_seg_batch, _ = self.val_csv_reader.get_batch(batch_size)
-        device = '/gpu:{}'.format(gpu_num) if gpu_num else '/cpu:0'
+        device = '/gpu:0' if gpu_num else '/cpu:0'
         with tf.device(device):
             with tf.name_scope('tower0'):
 
@@ -561,6 +561,7 @@ if __name__ == "__main__":
     if args.gpu_num:
         gpu_num = int(args.gpu_num)
         print "GPU set to: {}".format(gpu_num)
+        os.environ['CUDA_VISIBLE_DEVICES'] = str(gpu_num)
     else:
         gpu_num = None
 
