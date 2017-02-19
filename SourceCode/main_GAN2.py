@@ -30,7 +30,7 @@ if not os.path.exists(DEFAULT_DATA_DIR):
 
 
 DATA_DIR = os.environ.get('DATA_DIR', DEFAULT_DATA_DIR)
-    SNAPSHOT_DIR = os.environ.get('SNAPSHOT_DIR', DEFAULT_SNAPSHOT_DIR)
+SNAPSHOT_DIR = os.environ.get('SNAPSHOT_DIR', DEFAULT_SNAPSHOT_DIR)
 LOG_DIR = os.environ.get('LOG_DIR', DEFAULT_LOG_DIR)
 OUT_DIR = os.environ.get('OUT_DIR', DEFAULT_OUT_DIR)
 restore = True
