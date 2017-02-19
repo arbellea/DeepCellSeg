@@ -282,8 +282,9 @@ class GANTrainer(object):
 
                 self.total_loss_d = self.batch_loss_d
                 self.total_loss_g = self.batch_loss_g
-
+        with tf.device('/cpu:0'):
             with tf.name_scope('val_tower0'):
+
                 val_net_g = SegNetG(val_image_batch_gan)
                 val_cropped_image = tf.slice(val_image_batch,  [0, crop_size, crop_size, 0],
                                              [-1, target_hw[0], target_hw[1], -1])
@@ -514,8 +515,7 @@ class GANTrainer(object):
         saver = tf.train.Saver(var_list=tf.global_variables(), allow_empty=True)
         coord = tf.train.Coordinator()
         init_op = tf.group(tf.global_variables_initializer(), tf.local_variables_initializer())
-        config = tf.ConfigProto(allow_soft_placement=True, log_device_placement=True)
-        with tf.Session(config) as sess:
+        with tf.Session() as sess:
             sess.run(init_op)
             threads = tf.train.start_queue_runners(sess, coord=coord)
             saver.restore(sess, chekpoint_path)
