@@ -323,12 +323,12 @@ class GANTrainer(object):
                 eps = tf.constant(np.finfo(np.float32).eps)
                 if use_edges:
                     val_hard_seg = tf.expand_dims(tf.greater(tf.to_float(val_net_g.layers['fg']), tf.constant(0.5)), 3)
-                    gt_hard_set = tf.expand_dims(tf.greater(val_cropped_seg_gan[:, :, :, 1], tf.constant(0.5)), 3)
+                    gt_hard_seg = tf.expand_dims(tf.greater(val_cropped_seg_gan[:, :, :, 1], tf.constant(0.5)), 3)
                 else:
                     val_hard_seg = tf.greater(tf.to_float(val_net_g.layers['prediction']), tf.constant(0.5))
-                    gt_hard_set = val_cropped_seg_gan
-                val_intersection = tf.to_float(tf.logical_and(gt_hard_set, val_hard_seg))
-                val_union = tf.to_float(tf.logical_or(gt_hard_set, val_hard_seg))
+                    gt_hard_seg = val_cropped_seg_gan
+                val_intersection = tf.to_float(tf.logical_and(gt_hard_seg, val_hard_seg))
+                val_union = tf.to_float(tf.logical_or(gt_hard_seg, val_hard_seg))
 
                 val_dice = tf.reduce_mean(tf.div(tf.add(tf.reduce_sum(val_intersection, [1, 2]), eps),
                                                  tf.add(tf.reduce_sum(val_union, [1, 2]), eps)))
@@ -336,7 +336,8 @@ class GANTrainer(object):
                 self.val_batch_loss_d = tf.reduce_mean(val_loss_d)
                 self.val_batch_loss_g = tf.reduce_mean(val_loss_g)
                 self.val_dice = val_dice
-                self.val_fetch = [val_cropped_image_gan, gt_hard_set, val_gan_seg_batch]
+                self.val_fetch = [val_cropped_image_gan, gt_hard_seg, val_gan_seg_batch, val_hard_seg, val_intersection,
+                                  val_union]
 
         opt_d = tf.train.RMSPropOptimizer(self.LR_d)
         opt_g = tf.train.RMSPropOptimizer(self.LR_g)
@@ -394,7 +395,7 @@ class GANTrainer(object):
                 if chkpt_info:
                     chkpt_filename = chkpt_info.model_checkpoint_path
                     t = int(re.findall(r'\d+', os.path.basename(chkpt_filename))[0])+1
-                    saver.restore(sess, chkpt_filename)
+                    saver.restore(sess, os.path.join(save_dir, os.path.basename(chkpt_filename)))
 
             threads = tf.train.start_queue_runners(sess, coord=coord)
             feed_dict = {self.LR_g: lr_g, self.LR_d: lr_d}
@@ -450,9 +451,10 @@ class GANTrainer(object):
                     coord.join(threads)
                     save_path = saver.save(sess, os.path.join(save_dir, "model_%d.ckpt") % i)
                     print("Model saved in file: %s Because of error" % save_path)
-                    return
+                    return False
             coord.request_stop()
             coord.join(threads)
+            return True
 
     def validate_checkpoint(self, chekpoint_path, batch_size, use_edges):
 
@@ -605,15 +607,16 @@ if __name__ == "__main__":
     print "Build Trainer"
     trainer.build(batch_size=batch_size, use_edges=use_edges_flag)
     print "Start Training"
-    trainer.train(lr_g=0.001, lr_d=0.001, g_steps=40, d_steps=10, max_itr=200000,
-                  summaries=True, validation_interval=50,
-                  save_checkpoint_interval=500, plot_examples_interval=500)
-    print "Writing Output"
-    output_chkpnt_info = tf.train.get_checkpoint_state(save_dir)
-    if output_chkpnt_info:
-        chkpt_full_filename = output_chkpnt_info.model_checkpoint_path
-        print "Loading Checkpoint: {}".format(os.path.basename(chkpt_full_filename))
-        trainer.write_full_output_from_checkpoint(chkpt_full_filename, 1, use_edges_flag)
-    else:
-        print "Could not load any checkpoint"
+    success_flag = trainer.train(lr_g=0.001, lr_d=0.001, g_steps=10, d_steps=40, max_itr=200000,
+                                 summaries=True, validation_interval=50,
+                                 save_checkpoint_interval=500, plot_examples_interval=500)
+    if success_flag:
+        print "Writing Output"
+        output_chkpnt_info = tf.train.get_checkpoint_state(save_dir)
+        if output_chkpnt_info:
+            chkpt_full_filename = output_chkpnt_info.model_checkpoint_path
+            print "Loading Checkpoint: {}".format(os.path.basename(chkpt_full_filename))
+            trainer.write_full_output_from_checkpoint(chkpt_full_filename, 1, use_edges_flag)
+        else:
+            print "Could not load any checkpoint"
     print "Done!"
