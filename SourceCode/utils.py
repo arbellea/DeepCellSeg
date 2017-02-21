@@ -1,5 +1,8 @@
 import tensorflow as tf
-
+import numpy as np
+import matplotlib.pyplot as plt
+import scipy.ndimage as ndimage
+import matplotlib.cm as cm
 __author__ = 'assafarbelle'
 
 
@@ -68,3 +71,21 @@ def my_clustering_loss(net_out,feature_map):
         tf.add_to_collection(tf.GraphKeys.UPDATE_OPS, update_mean)
 
     return loss
+
+def plot_segmentation(I,GT,Seg, fig=None):
+
+    I = np.squeeze(I)
+    GT = np.squeeze(GT)
+    Seg = np.squeeze(Seg)
+
+    GTC = np.logical_and(GT, np.logical_not(ndimage.binary_erosion(GT)))
+    SegC = np.logical_and(Seg, np.logical_not(ndimage.binary_erosion(Seg)))
+
+    plt.figure(fig)
+    maskedGT = np.ma.masked_where(GTC == 0, GTC)
+    maskedSeg = np.ma.masked_where(SegC == 0, SegC)
+    plt.imshow(I, cmap=cm.gray)
+    plt.imshow(maskedGT, cmap=cm.jet, interpolation='none')
+    plt.imshow(maskedSeg*100, cmap=cm.hsv, interpolation='none')
+
+
