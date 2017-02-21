@@ -209,15 +209,15 @@ class CSVSegReaderRandom2(object):
 
     def get_batch(self, batch_size=1):
         self.batch_size = batch_size
-        image, seg, file_name = self._get_image()
-        concat = tf.concat(2, [image, seg])
-        concat = tf.random_crop(concat, [self.crop_size[0], self.crop_size[1], 2])
-        shape = concat.get_shape()
-        concat = tf.image.random_flip_left_right(concat)
-        concat = tf.image.random_flip_up_down(concat)
-        concat = tf.image.rot90(concat, k=self.random_rotate)
-        concat.set_shape(shape)
-        image, seg = tf.unstack(concat, 2, 2)
+        image_in, seg_in, file_name = self._get_image()
+        concat = tf.concat(2, [image_in, seg_in])
+        cropped = tf.random_crop(concat, [self.crop_size[0], self.crop_size[1], 2])
+        shape = cropped.get_shape()
+        fliplr = tf.image.random_flip_left_right(cropped)
+        flipud = tf.image.random_flip_up_down(fliplr)
+        rot = tf.image.rot90(flipud, k=self.random_rotate)
+        rot.set_shape(shape)
+        image, seg = tf.unstack(rot, 2, 2)
         image = tf.expand_dims(image, 2)
         seg = tf.expand_dims(seg, 2)
         image_batch, seg_batch, filename_batch = tf.train.shuffle_batch([image, seg, file_name],
