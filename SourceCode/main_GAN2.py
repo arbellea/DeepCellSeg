@@ -34,28 +34,6 @@ DATA_DIR = os.environ.get('DATA_DIR', DEFAULT_DATA_DIR)
 SNAPSHOT_DIR = os.environ.get('SNAPSHOT_DIR', DEFAULT_SNAPSHOT_DIR)
 LOG_DIR = os.environ.get('LOG_DIR', DEFAULT_LOG_DIR)
 OUT_DIR = os.environ.get('OUT_DIR', DEFAULT_OUT_DIR)
-restore = True
-data_set_name = 'Alon_Full_With_Edge'  # Alon_Small, Alon_Large, Alon_Full
-run_num = '4'
-base_folder = os.path.join(DATA_DIR, data_set_name+'/')
-train_filename = os.path.join(base_folder, 'train.csv')
-val_filename = os.path.join(base_folder, 'val.csv')
-#test_filename = os.path.join(DATA_DIR, 'Alon_Full_All', 'test.csv')
-#test_base_folder = os.path.join(DATA_DIR, 'Alon_Full_All'+'/')
-test_filename = val_filename
-test_base_folder = base_folder
-image_size = (512, 640, 1)
-# image_size = (256,160, 1)
-# image_size = (64, 64, 1)
-save_dir = os.path.join(SNAPSHOT_DIR, data_set_name, 'GAN', run_num)
-out_dir = os.path.join(OUT_DIR, data_set_name, 'GAN', run_num)
-summaries_dir_name = os.path.join(LOG_DIR, data_set_name, 'GAN', run_num)
-
-if not os.path.exists(save_dir):
-    os.makedirs(save_dir)
-if not os.path.exists(summaries_dir_name):
-    os.makedirs(summaries_dir_name)
-
 
 class SegNetG(Network):
 
