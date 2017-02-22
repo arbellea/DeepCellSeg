@@ -39,8 +39,10 @@ run_num = '4'
 base_folder = os.path.join(DATA_DIR, data_set_name+'/')
 train_filename = os.path.join(base_folder, 'train.csv')
 val_filename = os.path.join(base_folder, 'val.csv')
-test_filename = os.path.join(DATA_DIR, 'Alon_Full_All', 'test.csv')
-test_base_folder = os.path.join(DATA_DIR, 'Alon_Full_All'+'/')
+#test_filename = os.path.join(DATA_DIR, 'Alon_Full_All', 'test.csv')
+#test_base_folder = os.path.join(DATA_DIR, 'Alon_Full_All'+'/')
+test_filename = val_filename
+test_base_folder = base_folder
 image_size = (512, 640, 1)
 # image_size = (256,160, 1)
 # image_size = (64, 64, 1)
@@ -503,7 +505,7 @@ class GANTrainer(object):
         test_image_batch_gan, test_seg_batch_gan, filename_batch = self.test_csv_reader.get_batch(batch_size)
         net_g = SegNetG(test_image_batch_gan)
         with tf.variable_scope('net_g'):
-            gan_seg_batch, crop_size = net_g.build(False, use_edges)
+            gan_seg_batch, crop_size = net_g.build(False, True, use_edges)
         # target_hw = gan_seg_batch.get_shape().as_list()[1:3]
         # cropped_image = tf.slice(test_image_batch_gan, [0, crop_size, crop_size, 0],
         #                                                [-1, target_hw[0], target_hw[1], -1])
@@ -529,12 +531,12 @@ class GANTrainer(object):
                         if not os.path.exists(os.path.dirname(os.path.join(out_dir, file_name[0][2:]))):
                             os.makedirs(os.path.dirname(os.path.join(out_dir, file_name[0][2:])))
                             print "made dir"
-                        scipy.misc.toimage(gan_seg_squeeze, cmin=0.0, cmax=1.).save(os.path.join(out_dir,
+                        scipy.misc.toimage(gan_seg_squeeze, cmin=0.0, cmax=2.).save(os.path.join(out_dir,
                                                                                                  file_name[0][2:]))
                         print "Saved File: {}".format(file_name[0][2:])
                 # coord.request_stop()
                 # coord.join(threads)
-            except (ValueError, RuntimeError, KeyboardInterrupt):
+            except (ValueError, RuntimeError, KeyboardInterrupt, tf.errors.OutOfRangeError):
                 coord.request_stop()
                 coord.join(threads)
                 print "Stopped Saving Files"
@@ -588,8 +590,10 @@ if __name__ == "__main__":
     base_folder = os.path.join(DATA_DIR, data_set_name+'/')
     train_filename = os.path.join(base_folder, 'train.csv')
     val_filename = os.path.join(base_folder, 'val.csv')
-    test_filename = os.path.join(DATA_DIR, 'Alon_Full_All', 'test.csv')
-    test_base_folder = os.path.join(DATA_DIR, 'Alon_Full_All'+'/')
+    #test_filename = os.path.join(DATA_DIR, 'Alon_Full_All', 'test.csv')
+    #test_base_folder = os.path.join(DATA_DIR, 'Alon_Full_All'+'/')
+    test_filename = val_filename
+    test_base_folder = base_folder
     image_size = (512, 640, 1)
     # image_size = (256,160, 1)
     # image_size = (64, 64, 1)
@@ -607,16 +611,17 @@ if __name__ == "__main__":
     print "Build Trainer"
     trainer.build(batch_size=batch_size, use_edges=use_edges_flag)
     print "Start Training"
-    success_flag = trainer.train(lr_g=0.001, lr_d=0.001, g_steps=10, d_steps=40, max_itr=200000,
-                                 summaries=True, validation_interval=50,
-                                 save_checkpoint_interval=500, plot_examples_interval=500)
+    success_flag = True#trainer.train(lr_g=0.001, lr_d=0.001, g_steps=10, d_steps=40, max_itr=200000,
+                    #             summaries=True, validation_interval=50,
+                     #            save_checkpoint_interval=500, plot_examples_interval=500)
     if success_flag:
         print "Writing Output"
         output_chkpnt_info = tf.train.get_checkpoint_state(save_dir)
         if output_chkpnt_info:
             chkpt_full_filename = output_chkpnt_info.model_checkpoint_path
             print "Loading Checkpoint: {}".format(os.path.basename(chkpt_full_filename))
-            trainer.write_full_output_from_checkpoint(chkpt_full_filename, 1, use_edges_flag)
+            trainer.write_full_output_from_checkpoint(os.path.join(save_dir, os.path.basename(chkpt_full_filename)), 1,
+                                                      use_edges_flag)
         else:
             print "Could not load any checkpoint"
     print "Done!"
