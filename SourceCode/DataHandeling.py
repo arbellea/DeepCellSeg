@@ -170,20 +170,19 @@ class CSVSegReaderRandom2(object):
             with open(filename, 'rb') as csv_file:
                 csv_reader = csv.reader(csv_file, delimiter=',', quotechar='|')
                 for row in csv_reader:
-                    raw_filenames.append(row[0])
-                    seg_filenames.append(row[1])
+                   raw_filenames.append(row[0]+':'+row[1])
         if not num_examples:
             pass
         elif isinstance(num_examples, int):
             num_examples = min(num_examples, len(raw_filenames))
             raw_filenames = raw_filenames[:num_examples]
-            seg_filenames = seg_filenames[:num_examples]
+            #seg_filenames = seg_filenames[:num_examples]
         elif isinstance(num_examples, list):
             raw_filenames = [f_name for n, f_name in enumerate(raw_filenames) if n in num_examples]
-            seg_filenames = [f_name for n, f_name in enumerate(seg_filenames) if n in num_examples]
+            #seg_filenames = [f_name for n, f_name in enumerate(seg_filenames) if n in num_examples]
 
         self.raw_queue = tf.train.string_input_producer(raw_filenames, seed=0)
-        self.seg_queue = tf.train.string_input_producer(seg_filenames, seed=0)
+        #self.seg_queue = tf.train.string_input_producer(seg_filenames, seed=0)
 
         self.image_size = image_size
         self.crop_size = crop_size
@@ -197,17 +196,17 @@ class CSVSegReaderRandom2(object):
 
     def _get_image(self):
 
-        im_filename = self.raw_queue.dequeue()
-        seg_filename = self.seg_queue.dequeue()
-        im_raw = tf.read_file(self.base_folder+im_filename)
-        seg_raw = tf.read_file(self.base_folder+seg_filename)
+        im_filename = tf.string_split(self.raw_queue.dequeue(), ':')
+        #seg_filename = self.seg_queue.dequeue()
+        im_raw = tf.read_file(self.base_folder+im_filename[0])
+        seg_raw = tf.read_file(self.base_folder+im_filename[1])
 
         image = tf.reshape(tf.cast(tf.image.decode_png(im_raw, channels=1, dtype=tf.uint16), tf.float32),
                            self.image_size, name='input_image')
         seg = tf.reshape(tf.cast(tf.image.decode_png(seg_raw, channels=1, dtype=tf.uint8), tf.float32), self.image_size,
                          name='input_seg')
 
-        return image, seg, im_filename, seg_filename
+        return image, seg, im_filename[0], im_filename[1]
 
     def get_batch(self, batch_size=1):
         self.batch_size = batch_size
