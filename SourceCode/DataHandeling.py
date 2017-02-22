@@ -279,17 +279,18 @@ class CSVSegReader2(object):
 
     def _get_image(self):
 
-        filename = tf.string_split(self.raw_queue.dequeue(), ':')
+        filename = tf.sparse_tensor_to_dense(tf.string_split(tf.expand_dims(self.raw_queue.dequeue(), 0), ':'), '')
+        filename.set_shape([1,2])
         #seg_filename = self.seg_queue.dequeue()
 
-        im_raw = tf.read_file(self.base_folder+filename[0])
-        seg_raw = tf.read_file(self.base_folder+filename[1])
+        im_raw = tf.read_file(self.base_folder+filename[0][0])
+        seg_raw = tf.read_file(self.base_folder+filename[0][1])
         image = tf.reshape(tf.cast(tf.image.decode_png(im_raw, channels=1, dtype=tf.uint16), tf.float32),
                            self.image_size, name='input_image')
         seg = tf.reshape(tf.cast(tf.image.decode_png(seg_raw, channels=1, dtype=tf.uint8), tf.float32), self.image_size,
                          name='input_seg')
 
-        return image, seg, filename[0], filename[1]
+        return image, seg, filename[0][0], filename[0][1]
 
     def get_batch(self, batch_size=1):
 
