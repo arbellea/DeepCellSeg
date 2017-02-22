@@ -549,6 +549,7 @@ if __name__ == "__main__":
     parser.add_argument('-e', '--use_edges', help="segment to foregorund, background and edge", action="store_true")
     parser.add_argument('-g', '--gpu_num', help="Number of examples from train set")
     parser.add_argument('-b', '--batch_size', help="Number of examples per batch")
+    parser.add_argument('-t', '--test_only', help="Skip training phase and only run test", action="store_true")
     args = parser.parse_args()
     print args
     if args.example_num:
@@ -574,6 +575,9 @@ if __name__ == "__main__":
         restore = True
     else:
         restore = False
+
+    test_only = True if args.test_only else False
+
 
     if args.run_name:
         run_name = args.run_name
@@ -611,10 +615,12 @@ if __name__ == "__main__":
     print "Build Trainer"
     trainer.build(batch_size=batch_size, use_edges=use_edges_flag)
     print "Start Training"
-    success_flag = True#trainer.train(lr_g=0.001, lr_d=0.001, g_steps=10, d_steps=40, max_itr=200000,
-                    #             summaries=True, validation_interval=50,
-                     #            save_checkpoint_interval=500, plot_examples_interval=500)
-    if success_flag:
+    success_flag = False
+    if not test_only:
+        success_flag = trainer.train(lr_g=0.001, lr_d=0.001, g_steps=10, d_steps=40, max_itr=200000,
+                                     summaries=True, validation_interval=50,
+                                     save_checkpoint_interval=500, plot_examples_interval=500)
+    if success_flag or test_only:
         print "Writing Output"
         output_chkpnt_info = tf.train.get_checkpoint_state(save_dir)
         if output_chkpnt_info:
