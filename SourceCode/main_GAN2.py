@@ -9,6 +9,7 @@ import time
 import numpy as np
 import scipy.misc
 import argparse
+import sys
 
 try:
     import matplotlib.pyplot as plt
@@ -550,43 +551,39 @@ if __name__ == "__main__":
     parser.add_argument('-g', '--gpu_num', help="Number of examples from train set")
     parser.add_argument('-b', '--batch_size', help="Number of examples per batch")
     parser.add_argument('-t', '--test_only', help="Skip training phase and only run test", action="store_true")
-    args = parser.parse_args()
-    print args
-    if args.example_num:
-        example_num = int(args.example_num)
-        print "Examples set to: {}".format(example_num)
-    else:
-        example_num = None
+    parser.add_argument('-s', '--switch_rate', help="Number of steps for Generator and Discriminator. "
+                                                    "ex. -s 20,30 20 for Generator and 30 for Discriminator")
+    parser.add_argument('-o', '--out_to_file', help="Write console output to file ", action="store_true")
+    parser.add_argument('-l', '--learning_rate', help="Learning Rate for training")
 
-    if args.batch_size:
-        batch_size = int(args.batch_size)
-        print "Batch Size set to: {}".format(batch_size)
-    else:
-        batch_size = 70
-        print "Batch Size set to: {}".format(batch_size)
-    if args.gpu_num:
-        gpu_num = int(args.gpu_num)
+    args = parser.parse_args()
+
+    print args
+    example_num = int(args.example_num) if args.example_num else None
+    if example_num:
+        print "Examples set to: {}".format(example_num)
+
+    batch_size = int(args.batch_size) if args.batch_size else 70
+    print "Batch Size set to: {}".format(batch_size)
+
+    gpu_num = int(args.gpu_num) if args.gpu_num else None
+    if gpu_num:
         print "GPU set to: {}".format(gpu_num)
         os.environ['CUDA_VISIBLE_DEVICES'] = str(gpu_num)
-    else:
-        gpu_num = None
 
-    if args.restore:
-        restore = True
-    else:
-        restore = False
-
+    restore = True if args.restore else False
     test_only = True if args.test_only else False
-
-    if args.run_name:
-        run_name = args.run_name
+    run_name = args.run_name if  args.run_name else 'default_run'
+    use_edges_flag = True if args.use_edges else False
+    learning_rate = float(args.learning_rate) if args.learning_rate else 0.001
+    if args.switch_rate:
+        gsteps, dsteps = args.switch_rate.split(',')
+        gsteps = int(gsteps)
+        dsteps = int(dsteps)
     else:
-        run_name = 'default_run'
-
-    if args.use_edges:
-        use_edges_flag = True
-    else:
-        use_edges_flag = False
+        gsteps = 40
+        dsteps = 10
+    output_to_file = True if args.out_to_file else False
 
     data_set_name = 'Alon_Full_With_Edge'  # Alon_Small, Alon_Large, Alon_Full
 
@@ -608,7 +605,10 @@ if __name__ == "__main__":
         os.makedirs(save_dir)
     if not os.path.exists(summaries_dir_name):
         os.makedirs(summaries_dir_name)
-
+    if output_to_file:
+        f = file("{}.txt".format(run_name),'w')
+        orig_stdout = sys.stdout
+        sys.stdout = f
     print "Start"
     trainer = GANTrainer(train_filename, val_filename, test_filename, summaries_dir_name, num_examples=example_num)
     print "Build Trainer"
@@ -616,7 +616,8 @@ if __name__ == "__main__":
     print "Start Training"
     success_flag = False
     if not test_only:
-        success_flag = trainer.train(lr_g=0.001, lr_d=0.001, g_steps=10, d_steps=40, max_itr=200000,
+        success_flag = trainer.train(lr_g=learning_rate, lr_d=learning_rate, g_steps=gsteps, d_steps=dsteps,
+                                     max_itr=200000,
                                      summaries=True, validation_interval=50,
                                      save_checkpoint_interval=500, plot_examples_interval=500)
     if success_flag or test_only:
@@ -630,3 +631,6 @@ if __name__ == "__main__":
         else:
             print "Could not load any checkpoint"
     print "Done!"
+    if output_to_file:
+        f.close()
+        sys.stdout = orig_stdout
