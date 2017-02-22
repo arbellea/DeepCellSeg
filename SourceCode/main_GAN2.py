@@ -573,7 +573,7 @@ if __name__ == "__main__":
 
     restore = True if args.restore else False
     test_only = True if args.test_only else False
-    run_name = args.run_name if  args.run_name else 'default_run'
+    run_name = args.run_name if args.run_name else 'default_run'
     use_edges_flag = True if args.use_edges else False
     learning_rate = float(args.learning_rate) if args.learning_rate else 0.001
     if args.switch_rate:
