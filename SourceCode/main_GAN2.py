@@ -2,7 +2,7 @@
 import tensorflow as tf
 from Network import Network
 from DataHandeling import CSVSegReader2, CSVSegReaderRandom2
-# import utils
+import utils
 import os
 import re
 import time
@@ -577,7 +577,6 @@ if __name__ == "__main__":
         restore = False
 
     test_only = True if args.test_only else False
-
 
     if args.run_name:
         run_name = args.run_name

@@ -4,6 +4,8 @@ import tensorflow as tf
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimage
+import utils
+
 
 __author__ = 'assafarbelle'
 
@@ -205,11 +207,11 @@ class CSVSegReaderRandom2(object):
         seg = tf.reshape(tf.cast(tf.image.decode_png(seg_raw, channels=1, dtype=tf.uint8), tf.float32), self.image_size,
                          name='input_seg')
 
-        return image, seg, im_filename
+        return image, seg, im_filename, seg_filename
 
     def get_batch(self, batch_size=1):
         self.batch_size = batch_size
-        image_in, seg_in, file_name = self._get_image()
+        image_in, seg_in, file_name, seg_filename = self._get_image()
         concat = tf.concat(2, [image_in, seg_in])
         cropped = tf.random_crop(concat, [self.crop_size[0], self.crop_size[1], 2])
         shape = cropped.get_shape()
@@ -220,7 +222,7 @@ class CSVSegReaderRandom2(object):
         image, seg = tf.unstack(rot, 2, 2)
         image = tf.expand_dims(image, 2)
         seg = tf.expand_dims(seg, 2)
-        image_batch, seg_batch, filename_batch = tf.train.shuffle_batch([image, seg, file_name],
+        image_batch, seg_batch, filename_batch, seg_filename_batch = tf.train.shuffle_batch([image, seg, file_name, seg_filename],
                                                                         batch_size=self.batch_size,
                                                                         num_threads=self.num_threads,
                                                                         capacity=self.capacity,
@@ -252,19 +254,19 @@ class CSVSegReader2(object):
             with open(filename, 'rb') as csv_file:
                 csv_reader = csv.reader(csv_file, delimiter=',', quotechar='|')
                 for row in csv_reader:
-                    raw_filenames.append(row[0])
-                    seg_filenames.append(row[1])
+                    raw_filenames.append(row[0]+':'+row[1])
+
         if not num_examples:
             pass
         elif isinstance(num_examples, int):
             raw_filenames = raw_filenames[:num_examples]
-            seg_filenames = seg_filenames[:num_examples]
+            #seg_filenames = seg_filenames[:num_examples]
         elif isinstance(num_examples, list):
             raw_filenames = [f_name for n, f_name in enumerate(raw_filenames) if n in num_examples]
-            seg_filenames = [f_name for n, f_name in enumerate(seg_filenames) if n in num_examples]
+            #seg_filenames = [f_name for n, f_name in enumerate(seg_filenames) if n in num_examples]
 
         self.raw_queue = tf.train.string_input_producer(raw_filenames, num_epochs=num_epochs, shuffle=random, seed=0)
-        self.seg_queue = tf.train.string_input_producer(seg_filenames, num_epochs=num_epochs, shuffle=random, seed=0)
+        #self.seg_queue = tf.train.string_input_producer(seg_filenames, num_epochs=num_epochs, shuffle=random, seed=0)
 
         self.image_size = image_size
         self.batch_size = None
@@ -277,24 +279,26 @@ class CSVSegReader2(object):
 
     def _get_image(self):
 
-        im_filename = self.raw_queue.dequeue()
-        seg_filename = self.seg_queue.dequeue()
-        im_raw = tf.read_file(self.base_folder+im_filename)
-        seg_raw = tf.read_file(self.base_folder+seg_filename)
+        filename = tf.string_split(self.raw_queue.dequeue(), ':')
+        #seg_filename = self.seg_queue.dequeue()
+
+        im_raw = tf.read_file(self.base_folder+filename[0])
+        seg_raw = tf.read_file(self.base_folder+filename[1])
         image = tf.reshape(tf.cast(tf.image.decode_png(im_raw, channels=1, dtype=tf.uint16), tf.float32),
                            self.image_size, name='input_image')
         seg = tf.reshape(tf.cast(tf.image.decode_png(seg_raw, channels=1, dtype=tf.uint8), tf.float32), self.image_size,
                          name='input_seg')
 
-        return image, seg, im_filename
+        return image, seg, filename[0], filename[1]
 
     def get_batch(self, batch_size=1):
 
         self.batch_size = batch_size
 
-        image, seg, file_name = self._get_image()
+        image, seg, file_name, seg_file_name = self._get_image()
         if self.random:
-            image_batch, seg_batch, filename_batch = tf.train.shuffle_batch([image, seg, file_name],
+            image_batch, seg_batch, filename_batch, seg_filename_batch = tf.train.shuffle_batch([image, seg, file_name,
+                                                                                                 seg_file_name],
                                                                             batch_size=self.batch_size,
                                                                             num_threads=self.num_threads,
                                                                             capacity=self.capacity,

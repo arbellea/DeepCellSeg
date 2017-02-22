@@ -88,4 +88,13 @@ def plot_segmentation(I,GT,Seg, fig=None):
     plt.imshow(maskedGT, cmap=cm.jet, interpolation='none')
     plt.imshow(maskedSeg*100, cmap=cm.hsv, interpolation='none')
 
+def run_session():
+    coord = tf.train.Coordinator()
+    init_op = tf.group(tf.global_variables_initializer(), tf.local_variables_initializer())
+    sess = tf.InteractiveSession()
+    sess.run(init_op)
+    tf.train.start_queue_runners(sess,coord=coord)
+    return sess
+
+
 
