@@ -372,8 +372,8 @@ class GANTrainer(object):
               save_checkpoint_interval=200, plot_examples_interval=100):
 
         if summaries:
-            train_merged_summaries_d = tf.summary.merge(self.hist_summaries_d + self.objective_summary_d)
-            train_merged_summaries_g = tf.summary.merge(self.hist_summaries_g + self.objective_summary_g)
+            train_merged_summaries_d = tf.summary.merge(self.objective_summary_d)
+            train_merged_summaries_g = tf.summary.merge(self.objective_summary_g)
             val_merged_summaries = tf.summary.merge(self.val_objective_summary)
             val_merged_image_summaries = tf.summary.merge(self.val_image_summary)
             train_writer = tf.summary.FileWriter(os.path.join(self.summaries_dir, 'train'))
