@@ -251,7 +251,7 @@ class GANTrainer(object):
 
                 log2_const = tf.constant(0.6931)
                 # loss_g = tf.div(1., tf.maximum(loss_d, 0.01))
-                loss_g = tf.nn.sigmoid_cross_entropy_with_logits(net_d_small.layers['fc_out'], small_batch_label)
+                loss_g = tf.nn.sigmoid_cross_entropy_with_logits(net_d.layers['fc_out'], 1-full_batch_label)
 
                 update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
                 updates = tf.group(*update_ops) if update_ops else tf.no_op()
@@ -300,7 +300,7 @@ class GANTrainer(object):
 
                 val_loss_d = tf.nn.sigmoid_cross_entropy_with_logits(val_net_d.layers['fc_out'], val_full_batch_label)
 
-                val_loss_g = tf.abs(tf.sub(val_loss_d, log2_const))
+                val_loss_g = tf.nn.sigmoid_cross_entropy_with_logits(val_net_d.layers['fc_out'], 1-val_full_batch_label)
                 eps = tf.constant(np.finfo(np.float32).eps)
                 if use_edges:
                     val_hard_seg = tf.expand_dims(tf.greater(tf.to_float(val_net_g.layers['fg']), tf.constant(0.5)), 3)
@@ -398,7 +398,8 @@ class GANTrainer(object):
                         start = time.time()
                         _, loss, objective, summaries_string = sess.run(train_fetch_d, feed_dict=feed_dict)
                         elapsed = time.time() - start
-                        print "Train Step D: %d Elapsed Time: %g Objective: %g \n" % (i, elapsed, objective)
+                        if not i % 10:
+                            print "Train Step D: %d Elapsed Time: %g Objective: %g \n" % (i, elapsed, objective)
                         if summaries:
                             train_writer.add_summary(summaries_string, i)
                             train_writer.flush()
@@ -407,7 +408,8 @@ class GANTrainer(object):
                         start = time.time()
                         _, loss, objective, summaries_string = sess.run(train_fetch_g, feed_dict=feed_dict)
                         elapsed = time.time() - start
-                        print "Train Step G: %d Elapsed Time: %g Objective: %g \n" % (i, elapsed, objective)
+                        if not i % 10:
+                            print "Train Step G: %d Elapsed Time: %g Objective: %g \n" % (i, elapsed, objective)
                         if summaries:
                             train_writer.add_summary(summaries_string, i)
                             train_writer.flush()
