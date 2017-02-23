@@ -509,11 +509,15 @@ class GANTrainer(object):
                     gan_seg, file_name = sess.run([gan_seg_batch, filename_batch])
                     for i in range(gan_seg.shape[0]):
                         gan_seg_squeeze = np.squeeze(gan_seg[i])
-                        if not os.path.exists(os.path.dirname(os.path.join(out_dir, file_name[0][2:]))):
-                            os.makedirs(os.path.dirname(os.path.join(out_dir, file_name[0][2:])))
+                        if not os.path.exists(os.path.dirname(os.path.join(out_dir,
+                                                                           os.path.basename(chkpt_full_filename),
+                                                                           file_name[0][2:]))):
+                            os.makedirs(os.path.dirname(os.path.join(out_dir,os.path.basename(chkpt_full_filename),
+                                                                     file_name[0][2:])))
                             print "made dir"
-                        scipy.misc.toimage(gan_seg_squeeze, cmin=0.0, cmax=2.).save(os.path.join(out_dir,
-                                                                                                 file_name[0][2:]))
+                        scipy.misc.toimage(gan_seg_squeeze, cmin=0.0,
+                                           cmax=2.).save(os.path.join(out_dir, os.path.basename(chkpt_full_filename),
+                                                                                               file_name[0][2:]))
                         print "Saved File: {}".format(file_name[0][2:])
                 # coord.request_stop()
                 # coord.join(threads)

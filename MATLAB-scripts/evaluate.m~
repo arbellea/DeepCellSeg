@@ -8,8 +8,7 @@ GT_Data = Load_Data(GT_dir,GT_txt,GT_exp);
 Vis_Data = Load_Data(Vis_dir,GT_txt,GT_exp);
 %%
 %Seg_dir = '/home/arbellea/ess/Results/Output/Alon_Full_With_Edge/GAN/num_ex_1_w_edge_fast_switch_lr_0.001/Val/Raw/';
-ex_name = 'ex_11';
-Seg_dir = sprintf('/Users/assafarbelle/Output/Alon_Full_With_Edge/GAN/%s/Val/Raw', ex_name);
+Seg_dir = '/Users/assafarbelle/Output/Alon_Full_With_Edge/GAN/ex_11/Val/Raw';
 Seg_txt = '*.png';
 Seg_exp = 'Alon_Lab_H1299_t_(\d+)_y_1_x_1.png';
 Seg_Data = Load_Data(Seg_dir,Seg_txt,Seg_exp);
@@ -22,7 +21,6 @@ ngt = zeros(1,Seg_Data.Frame_Num);
 NS = 0;
 ns = zeros(1,Seg_Data.Frame_Num);
 %%
-c=0;
 for t = 1:Seg_Data.Frame_Num
    G = imread(GT_Data.Frame_name{t});
    S = imread(Seg_Data.Frame_name{t});
@@ -50,13 +48,6 @@ for t = 1:Seg_Data.Frame_Num
                continue
            end
            Sl = SL==s;
-           if sum(Sl(:))<50
-               ns(t) = ns(t)-1;
-               NS = NS-1;
-               Sbw(Sl) = 0;
-               c = c+1
-               continue
-           end
            intersection = sum(Gl(:)&Sl(:));
            union = sum(Gl(:)|Sl(:));
            J = intersection./union;
