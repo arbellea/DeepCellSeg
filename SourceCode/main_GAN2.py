@@ -44,7 +44,7 @@ class SegNetG(Network):
     def build(self, phase_train, reuse=None, use_edges=False):
         crop_size = 0
         # Layer 1
-        kxy = 7
+        kxy = 9
         kout = 16
         conv = self.conv('conv1', self.image_batch, kxy, kxy, kout)
         bn = self.batch_norm('bn1', conv, phase_train, reuse)
@@ -52,7 +52,7 @@ class SegNetG(Network):
         crop_size += (kxy-1)/2
 
         # Layer 2
-        kxy = 5
+        kxy = 7
         kout = 32
         conv = self.conv('conv2', relu, kxy, kxy, kout)
         bn = self.batch_norm('bn2', conv, phase_train, reuse)
@@ -60,7 +60,7 @@ class SegNetG(Network):
         crop_size += (kxy-1)/2
 
         # Layer 3
-        kxy = 3
+        kxy = 5
         kout = 64
         conv = self.conv('conv3', relu, kxy, kxy, kout)
         bn = self.batch_norm('bn3', conv, phase_train, reuse)
@@ -68,7 +68,7 @@ class SegNetG(Network):
         crop_size += (kxy-1)/2
 
         # Layer 4
-        kxy = 1
+        kxy = 3
         kout = 64
         conv = self.conv('conv4', relu, kxy, kxy, kout)
         bn = self.batch_norm('bn4', conv, phase_train, reuse)
@@ -131,17 +131,17 @@ class RibSegNet(Network):
         center0 = self.concat('center0', [self.image_batch, self.seg_batch], dim=3)
 
         # Layer 1
-        k1 = 7
+        k1 = 9
         k1out = 8
         left1, right1, center1 = rib('rib1', self.image_batch, self.seg_batch, center0, k1, k1out)
 
         # Layer 2
-        k2 = 5
+        k2 = 7
         k2out = 16
         left2, right2, center2 = rib('rib2', left1, right1, center1, k2, k2out)
 
         # Layer 3
-        k3 = 3
+        k3 = 5
         k3out = 32
         left3, right3, center3 = rib('rib3', left2, right2, center2, k3, k3out)
 
@@ -539,6 +539,7 @@ if __name__ == "__main__":
                                                     "ex. -s 20,30 20 for Generator and 30 for Discriminator")
     parser.add_argument('-o', '--out_to_file', help="Write console output to file ", action="store_true")
     parser.add_argument('-l', '--learning_rate', help="Learning Rate for training")
+    parser.add_argument('-c', '--checkpoint', help="Load Specific checkpint for test")
 
     args = parser.parse_args()
 
@@ -554,7 +555,7 @@ if __name__ == "__main__":
     if gpu_num > -1:
         print "GPU set to: {}".format(gpu_num)
         os.environ['CUDA_VISIBLE_DEVICES'] = str(gpu_num)
-
+    checkpoint = args.checkpoint
     restore = True if args.restore else False
     test_only = True if args.test_only else False
     run_name = args.run_name if args.run_name else 'default_run'
@@ -608,7 +609,10 @@ if __name__ == "__main__":
         print "Writing Output"
         output_chkpnt_info = tf.train.get_checkpoint_state(save_dir)
         if output_chkpnt_info:
-            chkpt_full_filename = output_chkpnt_info.model_checkpoint_path
+            if not checkpoint:
+                chkpt_full_filename = output_chkpnt_info.model_checkpoint_path
+
+
             print "Loading Checkpoint: {}".format(os.path.basename(chkpt_full_filename))
             trainer.write_full_output_from_checkpoint(os.path.join(save_dir, os.path.basename(chkpt_full_filename)), 1,
                                                       use_edges_flag)
