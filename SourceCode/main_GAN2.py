@@ -422,7 +422,7 @@ class GANTrainer(object):
                         if summaries:
                             val_writer.add_summary(summaries_string, i)
                             val_writer.flush()
-                    if (not i % save_checkpoint_interval) or (i == max_itr-1):
+                    if (not i % save_checkpoint_interval) or (i == max_itr-1)  or v_dice>0.9:
                         save_path = saver.save(sess, os.path.join(save_dir, "model_%d.ckpt") % i)
                         print("Model saved in file: %s" % save_path)
                     if not i % plot_examples_interval or (i < plot_examples_interval and not i % (d_steps+g_steps)):

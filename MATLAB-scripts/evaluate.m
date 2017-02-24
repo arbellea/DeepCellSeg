@@ -40,8 +40,8 @@ Vis_Data = Load_Data(Vis_dir,GT_txt,GT_exp);
 %chkpt = 26000; % Rec 42 Perc 51
 %chkpt = 26500; % Rec 44 Perc 53
 %%
-ex_name = 'ex_4_b';
-%chkpt = 5000;
+ex_name = 'ex_3_b';
+%%chkpt = 5000;
 %chkpt = 6000;
 %chkpt = 7500;
 %chkpt = 8500;
@@ -62,6 +62,7 @@ chkpt = 23500; % Goof Rec 83.6 Perc 81.5 F 82.5
 %chkpt = 14500;
 %chkpt = 15000;
 %chkpt = 18000; % Perc 68, Rec 68. Under segmentation
+%chkpt = 19500; % Perc 68, Rec 68. Under segmentation
 %chkpt = 20500; % Perc 75 Rec 75
 %chkpt = 22000; % Perc 73.7 Rec 74.3 F 74
 %chkpt = 23500; % Goof Rec 75 Perc 76.6 F 75.8
@@ -80,12 +81,20 @@ chkpt = 23500; % Goof Rec 83.6 Perc 81.5 F 82.5
 %chkpt = 23500; % Goof Rec 86.6 Perc 85.5 F 86.0
 %%
 
-ex_name = 'ex_2_x';
-chkpt = 2500;
+ex_name = 'ex_2_c';
+%chkpt = 2500;
+%chkpt = 49500; %Rec 87.2 Perc 85.4 F 86.3
+chkpt = 56000; %Rec 87.2 Perc 85.4 F 86.1
 
 %%
+%ex_name = 'ex_4_c';
+%chkpt = 18000; %Rec 66.2 Perc 68.9 F 67.5
+%%
+ex_name = 'ex_8_c';
+%chkpt = 18000; %Rec 78.5 Perc 83.6 F 81
+chkpt = 19000; %Rec 78.5 Perc 83.6 F 81
 
-
+%%
 Seg_dir = sprintf('/Users/assafarbelle/GAN_Results/Output/Alon_Full_With_Edge/GAN/%s/model_%d.ckpt/Val/Raw', ex_name,chkpt);
 Seg_txt = '*.png';
 Seg_exp = 'Alon_Lab_H1299_t_(\d+)_y_1_x_1.png';
@@ -148,6 +157,24 @@ for t = 1:Seg_Data.Frame_Num
            end 
        end     
    end
+   figure(t);
+subplot(2,3,1);
+imshow(I);
+a(1) = gca;
+subplot(2,3,2);
+imshow(Gbw);
+a(2) = gca;
+subplot(2,3,3);
+
+imshow(Sbw)
+a(3) = gca;
+subplot(2,3,4);
+imshow(S)
+a(4) = gca;
+subplot(2,3,5);
+imshow(imfuse(Gbw,Sbw))
+a(5) = gca;
+linkaxes(a);
 end
 %%
 j
@@ -157,14 +184,16 @@ Rec = TP./NGT
 Prec = TP./NS
 F = 2*Prec*Rec./(Prec+Rec)
 %%
-figure(1);
+return;
+figure(t);
+subplot(3,2,1);
 imshow(I);
-figure(2);
+subplot(3,2,2);
 imshow(Gbw);
-figure(3);
+subplot(3,2,3);
 imshow(Sbw)
-figure(4);
+subplot(3,2,4);
 imshow(S)
-figure(5);
+subplot(3,2,5);
 imshow(imfuse(Gbw,Sbw))
 
