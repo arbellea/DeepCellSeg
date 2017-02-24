@@ -413,7 +413,7 @@ class GANTrainer(object):
                         if summaries:
                             train_writer.add_summary(summaries_string, i)
                             train_writer.flush()
-
+                    v_dice = 0
                     if not i % validation_interval:
                         start = time.time()
                         v_dice, summaries_string = sess.run([self.val_dice, val_merged_summaries])
