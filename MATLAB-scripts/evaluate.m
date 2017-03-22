@@ -80,20 +80,60 @@ chkpt = 23500; % Goof Rec 83.6 Perc 81.5 F 82.5
 %chkpt = 22000; % Goof Rec 85.7 Perc 86.5 F 86.1
 %chkpt = 23500; % Goof Rec 86.6 Perc 85.5 F 86.0
 %%
+ex_name = 'ex_1_c';
+%chkpt = 9500;
+%chkpt = 10154; % Rec 75 Perc 75.3 F 75.16
+%chkpt = 10680; % Rec 74.5 Perc 80.5 F 77.45
+%chkpt = 11000; % Rec 76.7 Perc 82.1.3 F 79.37
+%chkpt = 11498; % Rec 82.4 Perc 83.9 F 83.1
+%chkpt = 11953; % Rec 79.3 Perc 85.3 F 82.2
+%chkpt = 12304; % Rec  82.8 Perc 87.5 F 85.14 
+%chkpt = 12500; % Rec  82. Perc 86.9 F 84.4 
+%chkpt = 12953; % Rec  83.7 Perc 86.8 F 85.2 
+%chkpt = 13456; % Rec  83.7 Perc 86.3 F 85.
+%chkpt = 13500; % Rec  85.9 Perc 85.8 F 85.4 
+%chkpt = 13755; % Rec  85.09 Perc 86.2 F 85.6
+%chkpt = 14650; % Rec  87.2 Perc 79.2 F 83.
+%chkpt = 16000; % Rec  89. Perc 85.6 F 87.3
+%chkpt = 17000; % Rec  88. Perc 82.3 F 85.17
+%chkpt = 19600; % Rec  89.9 Perc 82. F 85.7
+%chkpt = 20000; % Rec  89.9 Perc 82. F 85.7
+%chkpt = 43450; % Rec  89.9 Perc 82. F 85.7
+chkpt = 44050; % Rec  90 Perc 58.9 F 71.75
 
-ex_name = 'ex_2_c';
+%%
+%ex_name = 'ex_2_c';
 %chkpt = 2500;
 %chkpt = 49500; %Rec 87.2 Perc 85.4 F 86.3
-chkpt = 56000; %Rec 87.2 Perc 85.4 F 86.1
-
+%chkpt = 56000; %Rec 87.2 Perc 85.4 F 86.1
+%chkpt = 59725; %Rec 86.8 Perc 83.29 F 84.98
+%chkpt = 60050; %Rec 86.8 Perc 83.54 F 85.16
+%chkpt = 60150; %Rec 87.2 Perc 84.3 F 85.78
+%chkpt = 60450; %Rec 87.2 Perc 83.9 F 85.4
 %%
 %ex_name = 'ex_4_c';
 %chkpt = 18000; %Rec 66.2 Perc 68.9 F 67.5
 %%
-ex_name = 'ex_8_c';
+%ex_name = 'ex_8_c';
 %chkpt = 18000; %Rec 78.5 Perc 83.6 F 81
-chkpt = 19000; %Rec 78.5 Perc 83.6 F 81
+%chkpt = 19000; %Rec 78.5 Perc 82.7 F 80.3
+%chkpt = 48000; %Rec 81.5 Perc 84.5 F 83.0
 
+%%
+%ex_name = 'ex_4_d';
+%chkpt =  5500; %Rec 64.2 Perc 68.5 F 66.2
+%chkpt =  6454; %Rec 79.3 Perc 83.8 F 81.5
+%chkpt =  6903; %Rec 80.2 Perc 83.5 F 81.8
+%chkpt =  7500; %Rec 81.4 Perc 83 F 82.2
+%chkpt =  7618; %Rec 83.3 Perc 79.5 F 81.3
+%chkpt =  8000; %Rec 80.2 Perc 81.7 F 80.9
+%chkpt =  31000; %Rec 86.8 Perc 86.8 F 86.6
+
+
+%%
+%ex_name = 'ex_8_d';
+%chkpt = ; %Rec 66.2 Perc 68.9 F 67.5
+%chkpt =  26000; %Rec 87.73 Perc 81.3 F 84.39
 %%
 Seg_dir = sprintf('/Users/assafarbelle/GAN_Results/Output/Alon_Full_With_Edge/GAN/%s/model_%d.ckpt/Val/Raw', ex_name,chkpt);
 Seg_txt = '*.png';
