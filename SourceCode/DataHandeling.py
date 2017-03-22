@@ -171,11 +171,19 @@ class CSVSegReaderRandom2(object):
                 csv_reader = csv.reader(csv_file, delimiter=',', quotechar='|')
                 for row in csv_reader:
                    raw_filenames.append(row[0]+':'+row[1])
+
+        self.partial_frame = 0
+
         if not num_examples:
             pass
         elif isinstance(num_examples, int):
             num_examples = min(num_examples, len(raw_filenames))
             raw_filenames = raw_filenames[-num_examples:]
+        elif isinstance(num_examples, float):
+            self.partial_frame = num_examples
+            if num_examples <=0:
+                ValueError('number of examples has to be positive')
+            raw_filenames = raw_filenames[-1:]
             #seg_filenames = seg_filenames[:num_examples]
         elif isinstance(num_examples, list):
             raw_filenames = [f_name for n, f_name in enumerate(raw_filenames) if n in num_examples]
@@ -206,6 +214,14 @@ class CSVSegReaderRandom2(object):
                            self.image_size, name='input_image')
         seg = tf.reshape(tf.cast(tf.image.decode_png(seg_raw, channels=1, dtype=tf.uint8), tf.float32), self.image_size,
                          name='input_seg')
+        if self.partial_frame:
+            crop_y_start = int(((1-self.partial_frame) * self.image_size[0])/2)
+            crop_y_end = int(((1+self.partial_frame) * self.image_size[0])/2)
+            crop_x_start = int(((1-self.partial_frame) * self.image_size[1])/2)
+            crop_x_end = int(((1+self.partial_frame) * self.image_size[1])/2)
+            image = tf.slice(image, [crop_y_start, crop_x_start, 0], [crop_y_end, crop_x_end, -1])
+            seg = tf.slice(seg, [crop_y_start, crop_x_start, 0], [crop_y_end, crop_x_end, -1])
+            #image_size = (512, 640, 1)
 
         return image, seg, im_filename[0][0], im_filename[0][1]
 

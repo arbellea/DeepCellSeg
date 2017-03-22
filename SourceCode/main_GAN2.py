@@ -544,7 +544,8 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     print args
-    example_num = int(args.example_num) if args.example_num else None
+    example_num = float(args.example_num) if args.example_num else None
+
     if example_num:
         print "Examples set to: {}".format(example_num)
 
