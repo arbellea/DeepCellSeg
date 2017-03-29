@@ -603,7 +603,7 @@ if __name__ == "__main__":
     success_flag = False
     if not test_only:
         success_flag = trainer.train(lr_g=learning_rate, lr_d=learning_rate, g_steps=gsteps, d_steps=dsteps,
-                                     max_itr=200000,
+                                     max_itr=1000000,
                                      summaries=True, validation_interval=50,
                                      save_checkpoint_interval=500, plot_examples_interval=100)
     if success_flag or test_only:
