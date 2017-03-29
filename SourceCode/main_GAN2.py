@@ -206,6 +206,13 @@ class GANTrainer(object):
         self.hist_summaries_g = []
         self.image_summaries = []
 
+    @staticmethod
+    def cross_entropy_loss(image, label):
+        im_reshape = tf.reshape(image, (-1, 3))
+        label_reshape = tf.reshape(label, (-1, 3))
+        pix_loss = tf.nn.softmax_cross_entropy_with_logits(im_reshape,label_reshape)
+        return  tf.reduce_mean(pix_loss)
+
     def build(self, batch_size=1, use_edges=False):
 
         train_image_batch_gan, train_seg_batch_gan, _ = self.train_csv_reader.get_batch(batch_size)
@@ -230,6 +237,12 @@ class GANTrainer(object):
                     seg_one_hot = tf.one_hot(seg_vec, 3)
                     cropped_seg = tf.reshape(seg_one_hot, [-1, target_hw[0], target_hw[1], 3])
 
+                    cropped_seg_gan = tf.slice(train_seg_batch_gan, [0, crop_size, crop_size, 0],
+                                           [-1, target_hw[0], target_hw[1], -1])
+                    seg_vec_gan = tf.saturate_cast(tf.reshape(cropped_seg_gan, [-1]), tf.uint8)
+                    seg_one_hot_gan = tf.one_hot(seg_vec_gan, 3)
+                    cropped_seg_gan = tf.reshape(seg_one_hot_gan, [-1, target_hw[0], target_hw[1], 3])
+
                 else:
                     cropped_seg = tf.to_float(tf.equal(tf.slice(train_seg_batch, [0, crop_size, crop_size, 0],
                                                                 [-1, target_hw[0], target_hw[1], -1]), tf.constant(1.)))
@@ -248,16 +261,16 @@ class GANTrainer(object):
                     tf.get_variable_scope().reuse_variables()
                     net_d_small.build(False, reuse=True)
                 loss_d = tf.nn.sigmoid_cross_entropy_with_logits(net_d.layers['fc_out'], full_batch_label)
-
                 log2_const = tf.constant(0.6931)
                 # loss_g = tf.div(1., tf.maximum(loss_d, 0.01))
                 loss_g = tf.nn.sigmoid_cross_entropy_with_logits(net_d.layers['fc_out'], 1-full_batch_label)
+                loss_g_crossentropy = self.cross_entropy_loss(gan_seg_batch, cropped_seg_gan)
 
                 update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
                 updates = tf.group(*update_ops) if update_ops else tf.no_op()
                 with tf.control_dependencies([updates]):
                     self.batch_loss_d = tf.reduce_mean(loss_d)
-                    self.batch_loss_g = tf.reduce_mean(loss_g)
+                    self.batch_loss_g = tf.reduce_mean(loss_g) + loss_g_crossentropy
 
                 tf.get_variable_scope().reuse_variables()
 
