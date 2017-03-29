@@ -213,7 +213,7 @@ class GANTrainer(object):
         pix_loss = tf.nn.softmax_cross_entropy_with_logits(im_reshape,label_reshape)
         return  tf.reduce_mean(pix_loss)
 
-    def build(self, batch_size=1, use_edges=False):
+    def build(self, batch_size=1, use_edges=False, use_crossentropy=False):
 
         train_image_batch_gan, train_seg_batch_gan, _ = self.train_csv_reader.get_batch(batch_size)
         train_image_batch, train_seg_batch, _ = self.train_csv_reader.get_batch(batch_size)
@@ -270,7 +270,10 @@ class GANTrainer(object):
                 updates = tf.group(*update_ops) if update_ops else tf.no_op()
                 with tf.control_dependencies([updates]):
                     self.batch_loss_d = tf.reduce_mean(loss_d)
-                    self.batch_loss_g = tf.reduce_mean(loss_g) + loss_g_crossentropy
+                    self.batch_loss_g = tf.reduce_mean(loss_g)
+
+                if use_crossentropy:
+                    self.batch_loss_g += loss_g_crossentropy
 
                 tf.get_variable_scope().reuse_variables()
 
@@ -545,6 +548,7 @@ if __name__ == "__main__":
     parser.add_argument('-r', '--restore', help="Restore from last checkpoint", action="store_true")
     parser.add_argument('-N', '--run_name', help="Name of the run")
     parser.add_argument('-e', '--use_edges', help="segment to foregorund, background and edge", action="store_true")
+    parser.add_argument('-C', '--use_crossentropy', help="Use cross-entropy loss", action="store_true")
     parser.add_argument('-g', '--gpu_num', help="Number of examples from train set")
     parser.add_argument('-b', '--batch_size', help="Number of examples per batch")
     parser.add_argument('-t', '--test_only', help="Skip training phase and only run test", action="store_true")
@@ -574,6 +578,7 @@ if __name__ == "__main__":
     test_only = True if args.test_only else False
     run_name = args.run_name if args.run_name else 'default_run'
     use_edges_flag = True if args.use_edges else False
+    use_crossentropy_flag = True if args.use_crossentropy else False
     learning_rate = float(args.learning_rate) if args.learning_rate else 0.001
     if args.switch_rate:
         gsteps, dsteps = args.switch_rate.split(',')
@@ -611,7 +616,7 @@ if __name__ == "__main__":
     print "Start"
     trainer = GANTrainer(train_filename, val_filename, test_filename, summaries_dir_name, num_examples=example_num)
     print "Build Trainer"
-    trainer.build(batch_size=batch_size, use_edges=use_edges_flag)
+    trainer.build(batch_size=batch_size, use_edges=use_edges_flag, use_crossentropy=use_crossentropy_flag)
     print "Start Training"
     success_flag = False
     if not test_only:
