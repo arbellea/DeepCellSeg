@@ -557,6 +557,7 @@ if __name__ == "__main__":
     parser.add_argument('-o', '--out_to_file', help="Write console output to file ", action="store_true")
     parser.add_argument('-l', '--learning_rate', help="Learning Rate for training")
     parser.add_argument('-c', '--checkpoint', help="Load Specific checkpint for test")
+    parser.add_argument('-m', '--max_iter', help="Maximum number of iterations",)
 
     args = parser.parse_args()
 
@@ -580,6 +581,7 @@ if __name__ == "__main__":
     use_edges_flag = True if args.use_edges else False
     use_crossentropy_flag = True if args.use_crossentropy else False
     learning_rate = float(args.learning_rate) if args.learning_rate else 0.001
+    max_iter = float(args.max_iter) if args.max_iter else 1000000
     if args.switch_rate:
         gsteps, dsteps = args.switch_rate.split(',')
         gsteps = int(gsteps)
@@ -621,7 +623,7 @@ if __name__ == "__main__":
     success_flag = False
     if not test_only:
         success_flag = trainer.train(lr_g=learning_rate, lr_d=learning_rate, g_steps=gsteps, d_steps=dsteps,
-                                     max_itr=1000000,
+                                     max_itr=max_iter,
                                      summaries=True, validation_interval=50,
                                      save_checkpoint_interval=500, plot_examples_interval=100)
     if success_flag or test_only:
