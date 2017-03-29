@@ -179,7 +179,7 @@ class CSVSegReaderRandom2(object):
         elif isinstance(num_examples, int):
             num_examples = min(num_examples, len(raw_filenames))
             raw_filenames = raw_filenames[-num_examples:]
-        elif isinstance(num_examples, float):
+        elif isinstance(num_examples, float) and num_examples < 1:
             self.partial_frame = num_examples
             if num_examples <=0:
                 ValueError('number of examples has to be positive')
