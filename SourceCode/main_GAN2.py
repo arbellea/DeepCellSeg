@@ -606,7 +606,7 @@ if __name__ == "__main__":
     test_base_folder = base_folder
     if args.image_size:
         image_y, image_x = args.image_size.split(',')
-        image_size = (image_y, image_x, 1)
+        image_size = (int(image_y), int(image_x), 1)
     else:
         image_size = (512, 640, 1)
     # image_size = (256,160, 1)
