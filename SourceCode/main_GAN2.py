@@ -559,6 +559,8 @@ if __name__ == "__main__":
     parser.add_argument('-c', '--checkpoint', help="Load Specific checkpint for test")
     parser.add_argument('-m', '--max_iter', help="Maximum number of iterations",)
     parser.add_argument('-d', '--data', help="Name of data set")
+    parser.add_argument('-i', '--image_size', help="Image Size Y,X"
+                                                    "ex. -i 512,640")
 
     args = parser.parse_args()
 
@@ -602,7 +604,11 @@ if __name__ == "__main__":
     #test_base_folder = os.path.join(DATA_DIR, 'Alon_Full_All'+'/')
     test_filename = val_filename
     test_base_folder = base_folder
-    image_size = (512, 640, 1)
+    if args.image_size:
+        image_y, image_x = args.image_size.split(',')
+        image_size = (image_y, image_x, 1)
+    else:
+        image_size = (512, 640, 1)
     # image_size = (256,160, 1)
     # image_size = (64, 64, 1)
     save_dir = os.path.join(SNAPSHOT_DIR, data_set_name, 'GAN', run_name)
