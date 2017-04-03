@@ -558,6 +558,7 @@ if __name__ == "__main__":
     parser.add_argument('-l', '--learning_rate', help="Learning Rate for training")
     parser.add_argument('-c', '--checkpoint', help="Load Specific checkpint for test")
     parser.add_argument('-m', '--max_iter', help="Maximum number of iterations",)
+    parser.add_argument('-d', '--data', help="Name of data set")
 
     args = parser.parse_args()
 
@@ -582,6 +583,7 @@ if __name__ == "__main__":
     use_crossentropy_flag = True if args.use_crossentropy else False
     learning_rate = float(args.learning_rate) if args.learning_rate else 0.001
     max_iter = float(args.max_iter) if args.max_iter else 1000000
+    data_set_name = args.data if args.data else 'Alon_Full_With_Edge'
     if args.switch_rate:
         gsteps, dsteps = args.switch_rate.split(',')
         gsteps = int(gsteps)
@@ -591,7 +593,7 @@ if __name__ == "__main__":
         dsteps = 10
     output_to_file = True if args.out_to_file else False
 
-    data_set_name = 'Alon_Full_With_Edge'  # Alon_Small, Alon_Large, Alon_Full
+    # data_set_name = 'Alon_Full_With_Edge'  # Alon_Small, Alon_Large, Alon_Full
 
     base_folder = os.path.join(DATA_DIR, data_set_name+'/')
     train_filename = os.path.join(base_folder, 'train.csv')
