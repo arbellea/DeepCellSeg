@@ -34,6 +34,115 @@ DATA_DIR = os.environ.get('DATA_DIR', DEFAULT_DATA_DIR)
 SNAPSHOT_DIR = os.environ.get('SNAPSHOT_DIR', DEFAULT_SNAPSHOT_DIR)
 LOG_DIR = os.environ.get('LOG_DIR', DEFAULT_LOG_DIR)
 OUT_DIR = os.environ.get('OUT_DIR', DEFAULT_OUT_DIR)
+class SegUNetG(Network):
+
+    def __init__(self, image_batch):
+        self.image_batch = image_batch
+        super(SegUNetG, self).__init__()
+
+    def build(self, phase_train, reuse=None, use_edges=False):
+        crop_size = 0
+        # Layer 1
+        kxy = 7
+        kout = 16
+
+        conv = self.conv('conv1',  self.image_batch, kxy, kxy, kout)
+        bn = self.batch_norm('bn1',conv, phase_train, reuse)
+        relu = self.leaky_relu('relu1', bn)
+        pool = self.max_pool('pool1', relu, ksize=[1,2,2,1], strides=[1,2,2,1])
+
+        crop_size += (kxy-1)/2
+
+
+        # Layer 2
+        kxy = 3
+        kout = 32
+
+        conv = self.conv('conv2', pool, kxy, kxy, kout)
+        bn = self.batch_norm('bn2', conv, phase_train, reuse)
+        relu = self.leaky_relu('relu2', bn)
+        pool = self.max_pool('pool2', relu, ksize=[1,2,2,1], strides=[1,2,2,1])
+        crop_size += (kxy-1)/2
+
+        # Layer 3
+        kxy = 3
+        kout = 32
+
+        conv = self.conv('conv3', pool, kxy, kxy, kout)
+        bn = self.batch_norm('bn3', conv, phase_train, reuse)
+        relu = self.leaky_relu('relu3', bn)
+        pool = self.max_pool('pool3', relu, ksize=[1,2,2,1], strides=[1,2,2,1])
+        crop_size += (kxy-1)/2
+
+        # Layer 4
+        kxy = 1
+        kout = 64
+
+        conv = self.conv('conv4', pool, kxy, kxy, kout)
+        bn = self.batch_norm('bn4',conv , phase_train, reuse)
+        relu = self.leaky_relu('relu4', bn)
+        crop_size += (kxy-1)/2
+
+        # Start Upsampeling
+
+        # Layer 5
+        kxy = 3
+        kout = 32
+
+        out_shape = tf.concat(0,[tf.shape(self.layers['relu3'])[:3], tf.constant((kout,))])
+        conv = self.conv2d_transpose('conv5', relu, kxy, kxy, kout, outshape=out_shape, stride=[1,2,2,1])
+        bn = self.batch_norm('bn5', conv, phase_train, reuse)
+        relu = self.leaky_relu('relu5', bn)
+        crop_size += (kxy-1)/2
+
+        # Layer 6
+        kxy = 3
+        kout = 32
+        concat = self.concat('concat1', [relu, self.layers['relu3']])
+
+        out_shape = tf.concat(0,[tf.shape(self.layers['relu2'])[:3], tf.constant((kout,))])
+        conv = self.conv2d_transpose('conv6', concat, kxy, kxy, kout,outshape=out_shape, stride=[1,2,2,1])
+        bn = self.batch_norm('bn6', conv, phase_train, reuse)
+        relu = self.leaky_relu('relu6', bn)
+        crop_size += (kxy-1)/2
+
+        # Layer 7
+        kxy = 7
+        kout = 16
+        concat = self.concat('concat7', [relu, self.layers['relu2']])
+
+        out_shape = tf.concat(0,[tf.shape(self.layers['relu1'])[:3], tf.constant((kout,))])
+        conv = self.conv2d_transpose('conv7', concat, kxy, kxy, kout, outshape=out_shape, stride=[1,2,2,1])
+        bn = self.batch_norm('bn7', conv, phase_train, reuse)
+        relu = self.leaky_relu('relu7', bn)
+        crop_size += (kxy-1)/2
+
+        # Layer 8
+        kxy = 1
+        if use_edges:
+            kout = 3
+        else:
+            kout = 1
+        concat = self.concat('concat8', [relu, self.layers['relu1']])
+
+        conv = self.conv('conv8', concat, kxy, kxy, kout)
+        bn = self.batch_norm('bn8', conv, phase_train, reuse)
+        relu = self.leaky_relu('relu8', bn)
+        crop_size += (kxy-1)/2
+
+        if use_edges:
+            softmax = self.softmax('out', conv)
+            bg, fg, edge = tf.unpack(softmax, num=3, axis=3)
+            out = softmax  # tf.expand_dims(tf.add_n([fg, 2*edge]), 3)
+            self.ge('prediction', fg, tf.constant(0.5))
+            self.layers['bg'] = bg
+            self.layers['fg'] = fg
+            self.layers['edge'] = edge
+        else:
+            out = tf.sigmoid(conv, 'out')
+            self.ge('prediction', out, tf.constant(0.5))
+
+        return out, 0
 
 class SegNetG(Network):
 
@@ -224,7 +333,7 @@ class GANTrainer(object):
         with tf.device(device):
             with tf.name_scope('tower0'):
 
-                net_g = SegNetG(train_image_batch_gan)
+                net_g = SegUNetG(train_image_batch_gan)
                 with tf.variable_scope('net_g'):
                     gan_seg_batch, crop_size = net_g.build(True, use_edges=use_edges)
                 target_hw = gan_seg_batch.get_shape().as_list()[1:3]
@@ -282,7 +391,7 @@ class GANTrainer(object):
         with tf.device('/cpu:0'):
             with tf.name_scope('val_tower0'):
 
-                val_net_g = SegNetG(val_image_batch_gan)
+                val_net_g = SegUNetG(val_image_batch_gan)
                 val_cropped_image = tf.slice(val_image_batch,  [0, crop_size, crop_size, 0],
                                              [-1, target_hw[0], target_hw[1], -1])
                 if use_edges:
@@ -458,7 +567,7 @@ class GANTrainer(object):
     def validate_checkpoint(self, chekpoint_path, batch_size, use_edges):
 
         test_image_batch_gan, test_seg_batch_gan, filename_batch = self.test_csv_reader.get_batch(batch_size)
-        net_g = SegNetG(test_image_batch_gan)
+        net_g = SegUNetG(test_image_batch_gan)
         with tf.variable_scope('net_g'):
             gan_seg_batch, crop_size = net_g.build(False, use_edges)
         target_hw = gan_seg_batch.get_shape().as_list()[1:3]
@@ -500,7 +609,7 @@ class GANTrainer(object):
     def write_full_output_from_checkpoint(self, chekpoint_path, batch_size, use_edges):
 
         test_image_batch_gan, test_seg_batch_gan, filename_batch = self.test_csv_reader.get_batch(batch_size)
-        net_g = SegNetG(test_image_batch_gan)
+        net_g = SegUNetG(test_image_batch_gan)
         with tf.variable_scope('net_g'):
             gan_seg_batch, crop_size = net_g.build(False, True, use_edges)
         # target_hw = gan_seg_batch.get_shape().as_list()[1:3]

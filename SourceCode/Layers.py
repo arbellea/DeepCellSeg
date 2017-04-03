@@ -43,6 +43,7 @@ def conv2d_transpose(in_tensor,
                      kx,
                      ky,
                      kout,
+                     outshape,
                      stride=None,
                      biased=True,
                      kernel_initializer=None,
@@ -54,7 +55,7 @@ def conv2d_transpose(in_tensor,
     with tf.variable_scope(name) as scope:
 
         in_shape = in_tensor.get_shape().as_list()[-1]
-        kernel_shape = [kx, ky, in_shape, kout]
+        kernel_shape = [kx, ky, kout,in_shape]
         if not stride:
             stride = [1, 1, 1, 1]
         elif isinstance(stride,int):
@@ -68,7 +69,7 @@ def conv2d_transpose(in_tensor,
 
         if biased:
             b = tf.get_variable('bias', kout, initializer=biase_initializer)
-            out = tf.add(tf.nn.conv2d_transpose(in_tensor, kernel, strides=stride, padding=padding), b, name=name)
+            out = tf.add(tf.nn.conv2d_transpose(in_tensor, kernel, output_shape=outshape, strides=stride, padding=padding), b, name=name)
         else:
             out = tf.nn.conv2d(in_tensor, kernel, strides=stride, padding=padding, name=name)
             b = None
