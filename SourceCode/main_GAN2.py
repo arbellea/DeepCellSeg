@@ -724,7 +724,7 @@ if __name__ == "__main__":
     else:
         image_size = (512, 640, 1)
     # image_size = (256,160, 1)
-    image_size = (64, 64, 1)
+    # image_size = (64, 64, 1)
     save_dir = os.path.join(SNAPSHOT_DIR, data_set_name, 'GAN', run_name)
     out_dir = os.path.join(OUT_DIR, data_set_name, 'GAN', run_name)
     summaries_dir_name = os.path.join(LOG_DIR, data_set_name, 'GAN', run_name)
