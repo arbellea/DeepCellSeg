@@ -453,7 +453,10 @@ class GANTrainer(object):
         grads_vars_d = opt_d.compute_gradients(self.total_loss_d, var_list=list(net_d.weights.values()))
         grads_vars_g = opt_g.compute_gradients(self.total_loss_g, var_list=list(net_g.weights.values()))
 
-        self.train_step_d = opt_d.apply_gradients(grads_vars_d)
+        if use_crossentropy==1:
+            self.train_step_d = tf.no_op()
+        else:
+            self.train_step_d = opt_d.apply_gradients(grads_vars_d)
         self.train_step_g = opt_g.apply_gradients(grads_vars_g)
 
         self.objective_summary_d = [tf.summary.scalar('train/objective_d', self.total_loss_d)]
