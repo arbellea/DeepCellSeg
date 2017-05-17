@@ -319,10 +319,10 @@ class GANTrainer(object):
     def cross_entropy_loss(image, label):
         im_reshape = tf.reshape(image, (-1, 3))
         label_reshape = tf.reshape(label, (-1, 3))
-        pix_loss = tf.nn.softmax_cross_entropy_with_logits(im_reshape,label_reshape)
-        return  tf.reduce_mean(pix_loss)
+        pix_loss = tf.nn.softmax_cross_entropy_with_logits(im_reshape, label_reshape)
+        return tf.reduce_mean(pix_loss)
 
-    def build(self, batch_size=1, use_edges=False, use_crossentropy=False):
+    def build(self, batch_size=1, use_edges=False, use_crossentropy=0):
 
         train_image_batch_gan, train_seg_batch_gan, _ = self.train_csv_reader.get_batch(batch_size)
         train_image_batch, train_seg_batch, _ = self.train_csv_reader.get_batch(batch_size)
@@ -378,11 +378,13 @@ class GANTrainer(object):
                 update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
                 updates = tf.group(*update_ops) if update_ops else tf.no_op()
                 with tf.control_dependencies([updates]):
-                    self.batch_loss_d = tf.reduce_mean(loss_d)
-                    self.batch_loss_g = tf.reduce_mean(loss_g)
-
-                if use_crossentropy:
-                    self.batch_loss_g += loss_g_crossentropy
+                    if use_crossentropy == 1:
+                        self.batch_loss_g = loss_g_crossentropy
+                        self.batch_loss_d = 0
+                    else:
+                        self.batch_loss_d = tf.reduce_mean(loss_d)
+                        self.batch_loss_g = (tf.reduce_mean(loss_g)*(1-use_crossentropy) +
+                                             loss_g_crossentropy*use_crossentropy)
 
                 tf.get_variable_scope().reuse_variables()
 
@@ -472,7 +474,7 @@ class GANTrainer(object):
 
     def train(self, lr_g=0.1, lr_d=0.1, g_steps=1, d_steps=3, max_itr=100000,
               summaries=True, validation_interval=10,
-              save_checkpoint_interval=200, plot_examples_interval=100):
+              save_checkpoint_interval=200, plot_examples_interval=100, use_crossentropy=0):
 
         if summaries:
             train_merged_summaries_d = tf.summary.merge(self.objective_summary_d)
@@ -505,6 +507,7 @@ class GANTrainer(object):
 
             threads = tf.train.start_queue_runners(sess, coord=coord)
             feed_dict = {self.LR_g: lr_g, self.LR_d: lr_d}
+
             train_fetch_d = [self.train_step_d, self.batch_loss_d, self.total_loss_d, train_merged_summaries_d]
             train_fetch_g = [self.train_step_g, self.batch_loss_g, self.total_loss_g, train_merged_summaries_g]
 
@@ -515,6 +518,9 @@ class GANTrainer(object):
                 if not i % (d_steps+g_steps):
                     train_d = True
                 elif i % (d_steps+g_steps) == d_steps:
+                    train_d = False
+
+                if use_crossentropy ==1:
                     train_d = False
 
                 try:
@@ -657,7 +663,7 @@ if __name__ == "__main__":
     parser.add_argument('-r', '--restore', help="Restore from last checkpoint", action="store_true")
     parser.add_argument('-N', '--run_name', help="Name of the run")
     parser.add_argument('-e', '--use_edges', help="segment to foregorund, background and edge", action="store_true")
-    parser.add_argument('-C', '--use_crossentropy', help="Use cross-entropy loss", action="store_true")
+    parser.add_argument('-C', '--use_crossentropy', help="Percentage of cross-entropy lossin total loss")
     parser.add_argument('-g', '--gpu_num', help="Number of examples from train set")
     parser.add_argument('-b', '--batch_size', help="Number of examples per batch")
     parser.add_argument('-t', '--test_only', help="Skip training phase and only run test", action="store_true")
@@ -691,7 +697,7 @@ if __name__ == "__main__":
     test_only = True if args.test_only else False
     run_name = args.run_name if args.run_name else 'default_run'
     use_edges_flag = True if args.use_edges else False
-    use_crossentropy_flag = True if args.use_crossentropy else False
+    use_crossentropy_flag = float(args.use_crossentropy) if args.use_crossentropy else 0.
     learning_rate = float(args.learning_rate) if args.learning_rate else 0.001
     max_iter = float(args.max_iter) if args.max_iter else 1000000
     data_set_name = args.data if args.data else 'Alon_Full_With_Edge'
@@ -742,7 +748,8 @@ if __name__ == "__main__":
         success_flag = trainer.train(lr_g=learning_rate, lr_d=learning_rate, g_steps=gsteps, d_steps=dsteps,
                                      max_itr=max_iter,
                                      summaries=True, validation_interval=50,
-                                     save_checkpoint_interval=500, plot_examples_interval=100)
+                                     save_checkpoint_interval=500, plot_examples_interval=100,
+                                     use_crossentropy=use_crossentropy_flag)
     if success_flag or test_only:
         print "Writing Output"
         output_chkpnt_info = tf.train.get_checkpoint_state(save_dir)
