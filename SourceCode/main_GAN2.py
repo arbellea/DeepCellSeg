@@ -674,7 +674,7 @@ if __name__ == "__main__":
     parser.add_argument('-m', '--max_iter', help="Maximum number of iterations",)
     parser.add_argument('-d', '--data', help="Name of data set")
     parser.add_argument('-i', '--image_size', help="Image Size Y,X"
-                                                    "ex. -i 512,640")
+                                                   "ex. -i 512,640")
 
     args = parser.parse_args()
 
@@ -739,11 +739,12 @@ if __name__ == "__main__":
         sys.stdout = f
     print "Start"
     trainer = GANTrainer(train_filename, val_filename, test_filename, summaries_dir_name, num_examples=example_num)
-    print "Build Trainer"
-    trainer.build(batch_size=batch_size, use_edges=use_edges_flag, use_crossentropy=use_crossentropy_flag)
-    print "Start Training"
     success_flag = False
     if not test_only:
+        print "Build Trainer"
+        trainer.build(batch_size=batch_size, use_edges=use_edges_flag, use_crossentropy=use_crossentropy_flag)
+        print "Start Training"
+
         success_flag = trainer.train(lr_g=learning_rate, lr_d=learning_rate, g_steps=gsteps, d_steps=dsteps,
                                      max_itr=max_iter,
                                      summaries=True, validation_interval=50,
