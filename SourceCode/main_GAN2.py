@@ -155,7 +155,7 @@ class SegNetG(Network):
         # Layer 1
         kxy = 9
         kout = 16
-        conv = self.conv('conv1', self.image_batch, kxy, kxy, kout)
+        conv = self.conv('conv1', self.image_batch, kxy, kxy, kout, padding='VALID')
         bn = self.batch_norm('bn1', conv, phase_train, reuse)
         relu = self.leaky_relu('relu1', bn)
         crop_size += (kxy-1)/2
@@ -163,7 +163,7 @@ class SegNetG(Network):
         # Layer 2
         kxy = 7
         kout = 32
-        conv = self.conv('conv2', relu, kxy, kxy, kout)
+        conv = self.conv('conv2', relu, kxy, kxy, kout, kout, padding='VALID')
         bn = self.batch_norm('bn2', conv, phase_train, reuse)
         relu = self.leaky_relu('relu2', bn)
         crop_size += (kxy-1)/2
@@ -171,7 +171,7 @@ class SegNetG(Network):
         # Layer 3
         kxy = 5
         kout = 64
-        conv = self.conv('conv3', relu, kxy, kxy, kout)
+        conv = self.conv('conv3', relu, kxy, kxy, kout, kout, padding='VALID')
         bn = self.batch_norm('bn3', conv, phase_train, reuse)
         relu = self.leaky_relu('relu3', bn)
         crop_size += (kxy-1)/2
@@ -179,7 +179,7 @@ class SegNetG(Network):
         # Layer 4
         kxy = 3
         kout = 64
-        conv = self.conv('conv4', relu, kxy, kxy, kout)
+        conv = self.conv('conv4', relu, kxy, kxy, kout, kout, padding='VALID')
         bn = self.batch_norm('bn4', conv, phase_train, reuse)
         relu = self.leaky_relu('relu4', bn)
         crop_size += (kxy-1)/2
@@ -724,7 +724,7 @@ if __name__ == "__main__":
     else:
         image_size = (512, 640, 1)
     # image_size = (256,160, 1)
-    # image_size = (64, 64, 1)
+    image_size = (64, 64, 1)
     save_dir = os.path.join(SNAPSHOT_DIR, data_set_name, 'GAN', run_name)
     out_dir = os.path.join(OUT_DIR, data_set_name, 'GAN', run_name)
     summaries_dir_name = os.path.join(LOG_DIR, data_set_name, 'GAN', run_name)
