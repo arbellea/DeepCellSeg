@@ -611,12 +611,12 @@ class GANTrainer(object):
             coord.request_stop()
             coord.join(threads)
 
-    def write_full_output_from_checkpoint(self, chekpoint_path, batch_size, use_edges):
+    def write_full_output_from_checkpoint(self, chekpoint_path, batch_size, use_edges, reuse=True):
 
         test_image_batch_gan, test_seg_batch_gan, filename_batch = self.test_csv_reader.get_batch(batch_size)
         net_g = SegNetG(test_image_batch_gan)
         with tf.variable_scope('net_g'):
-            gan_seg_batch, crop_size = net_g.build(False, True, use_edges)
+            gan_seg_batch, crop_size = net_g.build(False, reuse, use_edges)
         # target_hw = gan_seg_batch.get_shape().as_list()[1:3]
         # cropped_image = tf.slice(test_image_batch_gan, [0, crop_size, crop_size, 0],
         #                                                [-1, target_hw[0], target_hw[1], -1])
@@ -760,7 +760,7 @@ if __name__ == "__main__":
 
             print "Loading Checkpoint: {}".format(os.path.basename(chkpt_full_filename))
             trainer.write_full_output_from_checkpoint(os.path.join(save_dir, os.path.basename(chkpt_full_filename)), 1,
-                                                      use_edges_flag)
+                                                      use_edges_flag, reuse=(not test_only))
         else:
             print "Could not load any checkpoint"
     print "Done!"
