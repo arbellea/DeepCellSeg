@@ -377,14 +377,10 @@ class GANTrainer(object):
 
                 update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
                 updates = tf.group(*update_ops) if update_ops else tf.no_op()
-                with tf.control_dependencies([updates]):
-                    if use_crossentropy == 1:
-                        self.batch_loss_g = loss_g_crossentropy
-                        self.batch_loss_d = tf.constant(0.)
-                    else:
-                        self.batch_loss_d = tf.reduce_mean(loss_d)
-                        self.batch_loss_g = (tf.reduce_mean(loss_g)*(1-use_crossentropy) +
-                                             loss_g_crossentropy*use_crossentropy)
+
+                self.batch_loss_d = tf.reduce_mean(loss_d)
+                self.batch_loss_g = (tf.reduce_mean(loss_g)*(1-use_crossentropy) +
+                                     loss_g_crossentropy*use_crossentropy)
 
                 tf.get_variable_scope().reuse_variables()
 
@@ -453,7 +449,7 @@ class GANTrainer(object):
         grads_vars_d = opt_d.compute_gradients(self.total_loss_d, var_list=list(net_d.weights.values()))
         grads_vars_g = opt_g.compute_gradients(self.total_loss_g, var_list=list(net_g.weights.values()))
 
-        if use_crossentropy==1:
+        if use_crossentropy == 1:
             self.train_step_d = tf.no_op()
         else:
             self.train_step_d = opt_d.apply_gradients(grads_vars_d)
@@ -523,7 +519,7 @@ class GANTrainer(object):
                 elif i % (d_steps+g_steps) == d_steps:
                     train_d = False
 
-                if use_crossentropy ==1:
+                if use_crossentropy == 1:
                     train_d = False
 
                 try:
