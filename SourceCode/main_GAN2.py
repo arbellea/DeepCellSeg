@@ -380,7 +380,7 @@ class GANTrainer(object):
                 with tf.control_dependencies([updates]):
                     if use_crossentropy == 1:
                         self.batch_loss_g = loss_g_crossentropy
-                        self.batch_loss_d = 0
+                        self.batch_loss_d = tf.constant(0.)
                     else:
                         self.batch_loss_d = tf.reduce_mean(loss_d)
                         self.batch_loss_g = (tf.reduce_mean(loss_g)*(1-use_crossentropy) +
