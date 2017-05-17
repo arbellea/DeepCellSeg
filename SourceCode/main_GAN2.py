@@ -333,7 +333,7 @@ class GANTrainer(object):
         with tf.device(device):
             with tf.name_scope('tower0'):
 
-                net_g = SegUNetG(train_image_batch_gan)
+                net_g = SegNetG(train_image_batch_gan)
                 with tf.variable_scope('net_g'):
                     gan_seg_batch, crop_size = net_g.build(True, use_edges=use_edges)
                 target_hw = gan_seg_batch.get_shape().as_list()[1:3]
@@ -389,7 +389,7 @@ class GANTrainer(object):
         with tf.device('/cpu:0'):
             with tf.name_scope('val_tower0'):
 
-                val_net_g = SegUNetG(val_image_batch_gan)
+                val_net_g = SegNetG(val_image_batch_gan)
                 val_cropped_image = tf.slice(val_image_batch,  [0, crop_size, crop_size, 0],
                                              [-1, target_hw[0], target_hw[1], -1])
                 if use_edges:
@@ -572,7 +572,7 @@ class GANTrainer(object):
     def validate_checkpoint(self, chekpoint_path, batch_size, use_edges):
 
         test_image_batch_gan, test_seg_batch_gan, filename_batch = self.test_csv_reader.get_batch(batch_size)
-        net_g = SegUNetG(test_image_batch_gan)
+        net_g = SegNetG(test_image_batch_gan)
         with tf.variable_scope('net_g'):
             gan_seg_batch, crop_size = net_g.build(False, use_edges)
         target_hw = gan_seg_batch.get_shape().as_list()[1:3]
@@ -614,7 +614,7 @@ class GANTrainer(object):
     def write_full_output_from_checkpoint(self, chekpoint_path, batch_size, use_edges):
 
         test_image_batch_gan, test_seg_batch_gan, filename_batch = self.test_csv_reader.get_batch(batch_size)
-        net_g = SegUNetG(test_image_batch_gan)
+        net_g = SegNetG(test_image_batch_gan)
         with tf.variable_scope('net_g'):
             gan_seg_batch, crop_size = net_g.build(False, True, use_edges)
         # target_hw = gan_seg_batch.get_shape().as_list()[1:3]
