@@ -167,7 +167,7 @@ class CSVSegReaderRandom2(object):
         raw_filenames = []
         seg_filenames = []
         for filename in filenames:
-            with open(filename, 'rb') as csv_file:
+            with open(filename, 'r') as csv_file:
                 csv_reader = csv.reader(csv_file, delimiter=',', quotechar='|')
                 for row in csv_reader:
                    raw_filenames.append(row[0]+':'+row[1])
