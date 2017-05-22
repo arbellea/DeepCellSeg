@@ -6,7 +6,7 @@ import matplotlib.cm as cm
 __author__ = 'assafarbelle'
 
 
-def put_kernels_on_grid (kernel, (grid_Y, grid_X), pad=1):
+def put_kernels_on_grid (kernel, grid_Y_X, pad=1):
     '''Visualize conv. features as an image (mostly for the 1st layer).
     Place kernel into a grid, with some paddings between adjacent filters.
     Args:
@@ -19,6 +19,7 @@ def put_kernels_on_grid (kernel, (grid_Y, grid_X), pad=1):
       Tensor of shape [(Y+pad)*grid_Y, (X+pad)*grid_X, NumChannels, 1].
     '''
     # pad X and Y
+    grid_Y, grid_X = grid_Y_X
     x1 = tf.pad(kernel, tf.constant( [[pad,0],[pad,0],[0,0],[0,0]] ))
 
     # X and Y dimensions, w.r.t. padding
