@@ -529,7 +529,7 @@ class GANTrainer(object):
                         _, loss, objective, summaries_string = sess.run(train_fetch_d, feed_dict=feed_dict)
                         elapsed = time.time() - start
                         if not i % 10:
-                            print "Train Step D: %d Elapsed Time: %g Objective: %g \n" % (i, elapsed, objective)
+                            print ("Train Step D: %d Elapsed Time: %g Objective: %g \n" % (i, elapsed, objective))
                         if summaries:
                             train_writer.add_summary(summaries_string, i)
                             train_writer.flush()
@@ -539,7 +539,7 @@ class GANTrainer(object):
                         _, loss, objective, summaries_string = sess.run(train_fetch_g, feed_dict=feed_dict)
                         elapsed = time.time() - start
                         if not i % 10:
-                            print "Train Step G: %d Elapsed Time: %g Objective: %g \n" % (i, elapsed, objective)
+                            print ("Train Step G: %d Elapsed Time: %g Objective: %g \n" % (i, elapsed, objective))
                         if summaries:
                             train_writer.add_summary(summaries_string, i)
                             train_writer.flush()
@@ -548,7 +548,7 @@ class GANTrainer(object):
                         start = time.time()
                         v_dice, summaries_string = sess.run([self.val_dice, val_merged_summaries])
                         elapsed = time.time() - start
-                        print "Validation Step: %d Elapsed Time: %g Dice: %g\n" % (i, elapsed, v_dice)
+                        print ("Validation Step: %d Elapsed Time: %g Dice: %g\n" % (i, elapsed, v_dice))
                         if summaries:
                             val_writer.add_summary(summaries_string, i)
                             val_writer.flush()
@@ -644,17 +644,17 @@ class GANTrainer(object):
                                                                            file_name[0][2:]))):
                             os.makedirs(os.path.dirname(os.path.join(out_dir,os.path.basename(chkpt_full_filename),
                                                                      file_name[0][2:])))
-                            print "made dir"
+                            print ("made dir")
                         scipy.misc.toimage(gan_seg_squeeze, cmin=0.0,
                                            cmax=2.).save(os.path.join(out_dir, os.path.basename(chkpt_full_filename),
                                                                                                file_name[0][2:]))
-                        print "Saved File: {}".format(file_name[0][2:])
+                        print ("Saved File: {}".format(file_name[0][2:]))
                 # coord.request_stop()
                 # coord.join(threads)
             except (ValueError, RuntimeError, KeyboardInterrupt, tf.errors.OutOfRangeError):
                 coord.request_stop()
                 coord.join(threads)
-                print "Stopped Saving Files"
+                print("Stopped Saving Files")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Run GAN Segmentation')
@@ -678,18 +678,18 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    print args
+    print(args)
     example_num = float(args.example_num) if args.example_num else None
 
     if example_num:
-        print "Examples set to: {}".format(example_num)
+        print("Examples set to: {}".format(example_num))
 
     batch_size = int(args.batch_size) if args.batch_size else 70
-    print "Batch Size set to: {}".format(batch_size)
+    print("Batch Size set to: {}".format(batch_size))
 
     gpu_num = int(args.gpu_num) if args.gpu_num else -1
     if gpu_num > -1:
-        print "GPU set to: {}".format(gpu_num)
+        print("GPU set to: {}".format(gpu_num))
         os.environ['CUDA_VISIBLE_DEVICES'] = str(gpu_num)
     checkpoint = args.checkpoint
     restore = True if args.restore else False
@@ -737,13 +737,13 @@ if __name__ == "__main__":
         f = file("{}.txt".format(run_name),'w')
         orig_stdout = sys.stdout
         sys.stdout = f
-    print "Start"
+    print("Start")
     trainer = GANTrainer(train_filename, val_filename, test_filename, summaries_dir_name, num_examples=example_num)
     success_flag = False
     if not test_only:
-        print "Build Trainer"
+        print("Build Trainer")
         trainer.build(batch_size=batch_size, use_edges=use_edges_flag, use_crossentropy=use_crossentropy_flag)
-        print "Start Training"
+        print("Start Training")
 
         success_flag = trainer.train(lr_g=learning_rate, lr_d=learning_rate, g_steps=gsteps, d_steps=dsteps,
                                      max_itr=max_iter,
@@ -751,19 +751,19 @@ if __name__ == "__main__":
                                      save_checkpoint_interval=500, plot_examples_interval=100,
                                      use_crossentropy=use_crossentropy_flag)
     if success_flag or test_only:
-        print "Writing Output"
+        print("Writing Output")
         output_chkpnt_info = tf.train.get_checkpoint_state(save_dir)
         if output_chkpnt_info:
             if not checkpoint:
                 chkpt_full_filename = output_chkpnt_info.model_checkpoint_path
 
 
-            print "Loading Checkpoint: {}".format(os.path.basename(chkpt_full_filename))
+            print("Loading Checkpoint: {}".format(os.path.basename(chkpt_full_filename)))
             trainer.write_full_output_from_checkpoint(os.path.join(save_dir, os.path.basename(chkpt_full_filename)), 1,
                                                       use_edges_flag, reuse=(not test_only))
         else:
-            print "Could not load any checkpoint"
-    print "Done!"
+            print("Could not load any checkpoint")
+    print("Done!")
     if output_to_file:
         f.close()
         sys.stdout = orig_stdout
