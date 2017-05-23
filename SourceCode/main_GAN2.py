@@ -204,7 +204,7 @@ class SegNetG(Network):
         else:
             out = tf.sigmoid(conv, 'out')
             self.ge('prediction', out, tf.constant(0.5))
-
+        crop_size = 0
         return out, crop_size
 
 
@@ -271,6 +271,7 @@ class RibSegNet(Network):
 
 
 class GANTrainer(object):
+    netG = SegNetG
 
     def __init__(self, train_filenames, val_filenames, test_filenames, summaries_dir, num_examples=None):
 
@@ -333,7 +334,7 @@ class GANTrainer(object):
         with tf.device(device):
             with tf.name_scope('tower0'):
 
-                net_g = SegNetG(train_image_batch_gan)
+                net_g = self.netG(train_image_batch_gan)
                 with tf.variable_scope('net_g'):
                     gan_seg_batch, crop_size = net_g.build(True, use_edges=use_edges)
                 target_hw = gan_seg_batch.get_shape().as_list()[1:3]
@@ -389,7 +390,7 @@ class GANTrainer(object):
         with tf.device('/cpu:0'):
             with tf.name_scope('val_tower0'):
 
-                val_net_g = SegNetG(val_image_batch_gan)
+                val_net_g = self.netG(val_image_batch_gan)
                 val_cropped_image = tf.slice(val_image_batch,  [0, crop_size, crop_size, 0],
                                              [-1, target_hw[0], target_hw[1], -1])
                 if use_edges:
@@ -572,7 +573,7 @@ class GANTrainer(object):
     def validate_checkpoint(self, chekpoint_path, batch_size, use_edges):
 
         test_image_batch_gan, test_seg_batch_gan, filename_batch = self.test_csv_reader.get_batch(batch_size)
-        net_g = SegNetG(test_image_batch_gan)
+        net_g = self.netG(test_image_batch_gan)
         with tf.variable_scope('net_g'):
             gan_seg_batch, crop_size = net_g.build(False, use_edges)
         target_hw = gan_seg_batch.get_shape().as_list()[1:3]
@@ -614,7 +615,7 @@ class GANTrainer(object):
     def write_full_output_from_checkpoint(self, chekpoint_path, batch_size, use_edges, reuse=True):
 
         test_image_batch_gan, test_seg_batch_gan, filename_batch = self.test_csv_reader.get_batch(batch_size)
-        net_g = SegNetG(test_image_batch_gan)
+        net_g = self.netG(test_image_batch_gan)
         with tf.variable_scope('net_g'):
             gan_seg_batch, crop_size = net_g.build(False, reuse, use_edges)
         # target_hw = gan_seg_batch.get_shape().as_list()[1:3]

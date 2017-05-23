@@ -135,6 +135,14 @@ chkpt = 44050; % Rec  90 Perc 58.9 F 71.75
 %chkpt = ; %Rec 66.2 Perc 68.9 F 67.5
 %chkpt =  26000; %Rec 87.73 Perc 81.3 F 84.39
 %%
+ex_name = 'num_ex_0.5_real';
+%chkpt = ; %Rec 66.2 Perc 68.9 F 67.5
+chkpt =  999999; %Rec 87.73 Perc 81.3 F 84.39
+%%
+ex_name = 'no_advers';
+%chkpt = ; %Rec 66.2 Perc 68.9 F 67.5
+chkpt =  41500; %Rec 2.43 Perc 67.11 F 4.7
+%%
 Seg_dir = sprintf('/Users/assafarbelle/GAN_Results/Output/Alon_Full_With_Edge/GAN/%s/model_%d.ckpt/Val/Raw', ex_name,chkpt);
 Seg_txt = '*.png';
 Seg_exp = 'Alon_Lab_H1299_t_(\d+)_y_1_x_1.png';
