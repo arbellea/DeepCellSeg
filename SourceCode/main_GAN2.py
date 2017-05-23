@@ -271,7 +271,7 @@ class RibSegNet(Network):
 
 
 class GANTrainer(object):
-    netG = SegNetG
+    netG = SegUNetG
 
     def __init__(self, train_filenames, val_filenames, test_filenames, summaries_dir, num_examples=None):
 
