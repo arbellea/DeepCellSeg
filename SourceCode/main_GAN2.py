@@ -214,7 +214,7 @@ class SegNetG(Network):
             out = tf.sigmoid(conv, 'out')
             self.ge('prediction', out, tf.constant(0.5))
 
-        return out, crop_size
+        return out, int(crop_size)
 
 
 class RibSegNet(Network):
@@ -506,7 +506,7 @@ class GANTrainer(object):
             val_writer = tf.summary.FileWriter(os.path.join(self.summaries_dir, 'val'))
         else:
             train_merged_summaries_g = tf.no_op()
-            train_merged_summaries_d = tf.no_op()
+            train_merged_summaries_362,d = tf.no_op()
             val_merged_summaries = tf.no_op()
             val_merged_image_summaries = tf.no_op()
 
