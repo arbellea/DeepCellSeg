@@ -227,20 +227,20 @@ class RibSegNet(Network):
             conv_left = self.conv('left_' + name, left, kxy, kxy, kout, stride, biased=False)
             bn_left = self.batch_norm('bn_left_' + name, conv_left, phase_train, reuse)
             relu_left = self.leaky_relu('relu_left_' + name, bn_left)
-            out_left = tf.nn.max_pool(relu_left,[1,2,2,1], [1, 2, 2, 1])
+            out_left = tf.nn.max_pool(relu_left,[1,2,2,1], [1, 2, 2, 1],'VALID')
 
             # Right
 
             conv_right = self.conv('right_' + name, right, kxy, kxy, kout, stride, biased=False)
             bn_right = self.batch_norm('bn_right_' + name, conv_right, phase_train, reuse)
             relu_right = self.leaky_relu('relu_right_' + name, bn_right)
-            out_right = tf.nn.max_pool(relu_right, [1, 2, 2, 1], [1, 2, 2, 1])
+            out_right = tf.nn.max_pool(relu_right, [1, 2, 2, 1], [1, 2, 2, 1], 'VALID')
             # Center
 
             conv_center = self.conv('center' + name, center, kxy, kxy, kout / 2, stride, biased=False)
             bn_center = self.batch_norm('bn_center_' + name, conv_center, phase_train, reuse)
             relu_center = self.leaky_relu('relu_center_' + name, bn_center)
-            pool_center = tf.nn.max_pool(relu_center, [1, 2, 2, 1], [1, 2, 2, 1])
+            pool_center = tf.nn.max_pool(relu_center, [1, 2, 2, 1], [1, 2, 2, 1], 'VALID')
             out_center = self.concat('center_out_' + name, [out_left, out_right, pool_center], dim=3)
 
             return out_left, out_right, out_center
