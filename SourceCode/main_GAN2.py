@@ -283,9 +283,9 @@ class RibSegNet(Network):
 
 
 class GANTrainer(object):
-    netG = SegUNetG
 
-    def __init__(self, train_filenames, val_filenames, test_filenames, summaries_dir, num_examples=None):
+
+    def __init__(self, train_filenames, val_filenames, test_filenames, summaries_dir, num_examples=None, Unet=False):
 
         self.train_filenames = train_filenames if isinstance(train_filenames, list) else [train_filenames]
         self.val_filenames = val_filenames if isinstance(val_filenames, list) else [val_filenames]
@@ -327,6 +327,13 @@ class GANTrainer(object):
         self.hist_summaries_d = []
         self.hist_summaries_g = []
         self.image_summaries = []
+        if Unet:
+            self.netG = SegUNetG
+        else:
+            self.netG = SegNetG
+
+
+
 
     @staticmethod
     def cross_entropy_loss(image, label):
@@ -689,6 +696,7 @@ if __name__ == "__main__":
     parser.add_argument('-d', '--data', help="Name of data set")
     parser.add_argument('-i', '--image_size', help="Image Size Y,X"
                                                    "ex. -i 512,640")
+    parser.add_argument('-u', '--use_unet', help=" Use Unet instead of CNN", action="store_true")
 
     args = parser.parse_args()
 
@@ -710,6 +718,7 @@ if __name__ == "__main__":
     test_only = True if args.test_only else False
     run_name = args.run_name if args.run_name else 'default_run'
     use_edges_flag = False if args.use_edges else True
+    Unet = True if args.unet else False
     use_crossentropy_flag = float(args.use_crossentropy) if args.use_crossentropy else 0.
     learning_rate = float(args.learning_rate) if args.learning_rate else 0.001
     max_iter = float(args.max_iter) if args.max_iter else 1000000
@@ -752,7 +761,8 @@ if __name__ == "__main__":
         orig_stdout = sys.stdout
         sys.stdout = f
     print("Start")
-    trainer = GANTrainer(train_filename, val_filename, test_filename, summaries_dir_name, num_examples=example_num)
+    trainer = GANTrainer(train_filename, val_filename, test_filename, summaries_dir_name, num_examples=example_num,
+                         Unet=Unet)
     success_flag = False
     if not test_only:
         print("Build Trainer")
