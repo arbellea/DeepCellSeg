@@ -90,8 +90,9 @@ class SegUNetG(Network):
         kxy = 3
         kout = 32
 
-        out_shape = tf.concat(0,[tf.shape(self.layers['relu3'])[:3], tf.constant((kout,))])
+        out_shape = self.layers['relu3'].get_shape().as_list()[:3]+[kout]
         conv = self.conv2d_transpose('conv5', relu, kxy, kxy, kout, outshape=out_shape, stride=[1,2,2,1])
+        s = conv.get_shape().is_fully_defined()
         bn = self.batch_norm('bn5', conv, phase_train, reuse)
         relu = self.leaky_relu('relu5', bn)
         crop_size += (kxy-1)/2
@@ -101,7 +102,8 @@ class SegUNetG(Network):
         kout = 32
         concat = self.concat('concat1', [relu, self.layers['relu3']])
 
-        out_shape = tf.concat(0,[tf.shape(self.layers['relu2'])[:3], tf.constant((kout,))])
+
+        out_shape = self.layers['relu2'].get_shape().as_list()[:3] + [kout]
         conv = self.conv2d_transpose('conv6', concat, kxy, kxy, kout,outshape=out_shape, stride=[1,2,2,1])
         bn = self.batch_norm('bn6', conv, phase_train, reuse)
         relu = self.leaky_relu('relu6', bn)
@@ -112,7 +114,8 @@ class SegUNetG(Network):
         kout = 16
         concat = self.concat('concat7', [relu, self.layers['relu2']])
 
-        out_shape = tf.concat(0,[tf.shape(self.layers['relu1'])[:3], tf.constant((kout,))])
+
+        out_shape = self.layers['relu1'].get_shape().as_list()[:3] + [kout]
         conv = self.conv2d_transpose('conv7', concat, kxy, kxy, kout, outshape=out_shape, stride=[1,2,2,1])
         bn = self.batch_norm('bn7', conv, phase_train, reuse)
         relu = self.leaky_relu('relu7', bn)
