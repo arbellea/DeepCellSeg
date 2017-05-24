@@ -34,6 +34,7 @@ DATA_DIR = os.environ.get('DATA_DIR', DEFAULT_DATA_DIR)
 SNAPSHOT_DIR = os.environ.get('SNAPSHOT_DIR', DEFAULT_SNAPSHOT_DIR)
 LOG_DIR = os.environ.get('LOG_DIR', DEFAULT_LOG_DIR)
 OUT_DIR = os.environ.get('OUT_DIR', DEFAULT_OUT_DIR)
+
 class SegUNetG(Network):
 
     def __init__(self, image_batch):
@@ -144,6 +145,7 @@ class SegUNetG(Network):
 
         return out, 0
 
+
 class SegNetG(Network):
 
     def __init__(self, image_batch):
@@ -204,7 +206,7 @@ class SegNetG(Network):
         else:
             out = tf.sigmoid(conv, 'out')
             self.ge('prediction', out, tf.constant(0.5))
-        crop_size = 0
+
         return out, crop_size
 
 
@@ -338,6 +340,7 @@ class GANTrainer(object):
                 with tf.variable_scope('net_g'):
                     gan_seg_batch, crop_size = net_g.build(True, use_edges=use_edges)
                 target_hw = gan_seg_batch.get_shape().as_list()[1:3]
+                target_hw = map(int, target_hw)
                 cropped_image = tf.slice(train_image_batch, [0, crop_size, crop_size, 0],
                                          [-1, target_hw[0], target_hw[1], -1])
                 if use_edges:
