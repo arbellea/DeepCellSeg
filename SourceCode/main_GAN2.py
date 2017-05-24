@@ -696,7 +696,7 @@ if __name__ == "__main__":
     parser.add_argument('-d', '--data', help="Name of data set")
     parser.add_argument('-i', '--image_size', help="Image Size Y,X"
                                                    "ex. -i 512,640")
-    parser.add_argument('-u', '--use_unet', help=" Use Unet instead of CNN", action="store_true")
+    parser.add_argument('-u', '--unet', help=" Use Unet instead of CNN", action="store_true")
 
     args = parser.parse_args()
 
