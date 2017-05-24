@@ -152,6 +152,120 @@ class SegUNetG(Network):
         crop_size =0
         return out, 0
 
+class SegUNetG2(Network):
+
+    def __init__(self, image_batch):
+        self.image_batch = image_batch
+        super(SegUNetG2, self).__init__()
+
+    def build(self, phase_train, reuse=None, use_edges=False):
+
+        def conv_bn_rel(ten_in, kxy, kout, id):
+            conv = self.conv('conv%d'%id, ten_in, kxy, kxy, kout, padding='SAME')
+            bn = self.batch_norm('bn%d'%id, conv, phase_train, reuse)
+            relu = self.leaky_relu('relu%d'%id, bn)
+            return  relu
+        # Layer 1 Left
+        kxy = 3
+        kout = 64
+        id = 1
+        relu1_1 = conv_bn_rel(self.image_batch, kxy, kout, id)
+        id += 1
+        relu1_2 = conv_bn_rel(relu1_1, kxy, kout, id)
+        id += 1
+        pool1_2 = self.max_pool('pool1', relu1_2, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1])
+
+        #Layer 2 Left
+
+        kout = 128
+        relu2_1 = conv_bn_rel(pool1_2, kxy, kout, id)
+        id += 1
+        relu2_2 = conv_bn_rel(relu2_1, kxy, kout, id)
+        id += 1
+        pool2_2 = self.max_pool('pool2', relu2_2, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1])
+
+        # Layer 3 Left
+        kout = 256
+        relu3_1 = conv_bn_rel(pool2_2, kxy, kout, id)
+        id += 1
+        relu3_2 = conv_bn_rel(relu3_1, kxy, kout, id)
+        id += 1
+        pool3_2 = self.max_pool('pool3', relu3_2, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1])
+
+        # Layer 4 Left
+        kout = 512
+        relu4_1 = conv_bn_rel(pool3_2, kxy, kout, id)
+        id += 1
+        relu4_2 = conv_bn_rel(relu4_1, kxy, kout, id)
+        id += 1
+        pool4_2 = self.max_pool('pool4', relu4_2, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1])
+
+        # Layer 5 Left
+        kout = 1024
+        relu5_1 = conv_bn_rel(pool4_2, kxy, kout, id)
+        id += 1
+        relu5_2 = conv_bn_rel(relu5_1, kxy, kout, id)
+        id += 1
+
+        kout = 512
+        out_shape = relu4_2.get_shape().as_list()[:3] + [kout]
+        up_5_2 = self.conv2d_transpose('conv_up5', relu5_2, kxy, kxy, kout, outshape=out_shape, stride=[1, 1, 1, 1])
+        concat_4 = self.concat('concat4', [relu4_2, up_5_2], dim=3)
+        relu_4_3 = conv_bn_rel(concat_4,kxy, kout, id)
+        id +=1
+
+        kout = 256
+        relu4_4 = conv_bn_rel(relu_4_3, kxy, kout, id)
+        id += 1
+        out_shape = relu3_2.get_shape().as_list()[:3] + [kout]
+        up_4_4 = self.conv2d_transpose('conv_up4', relu4_4, kxy, kxy, kout, outshape=out_shape, stride=[1, 1, 1, 1])
+        concat_3 = self.concat('concat3', [relu3_2, up_4_4], dim=3)
+        relu3_3 = conv_bn_rel(concat_3, kxy, kout, id)
+        id += 1
+        kout = 128
+        relu3_4 = conv_bn_rel(relu3_3, kxy, kout, id)
+        id += 1
+        out_shape = relu2_2.get_shape().as_list()[:3] + [kout]
+        up_3_4 = self.conv2d_transpose('conv_up3', relu3_4, kxy, kxy, kout, outshape=out_shape, stride=[1, 1, 1, 1])
+
+        concat_2 = self.concat('concat2', [relu2_2, up_3_4], dim=3)
+        relu2_3 = conv_bn_rel(concat_2, kxy, kout, id)
+        id += 1
+        kout = 64
+        relu2_4 = conv_bn_rel(relu2_3, kxy, kout, id)
+        id += 1
+        out_shape = relu1_2.get_shape().as_list()[:3] + [kout]
+        up_2_4 = self.conv2d_transpose('conv_up2', relu2_4, kxy, kxy, kout, outshape=out_shape, stride=[1, 1, 1, 1])
+        concat_1 = self.concat('concat1', [relu1_2, up_2_4], dim=3)
+        relu1_3 = conv_bn_rel(concat_1, kxy, kout, id)
+        id += 1
+        relu1_4 = conv_bn_rel(relu1_3, kxy, kout, id)
+        id += 1
+
+
+        # Layer 8
+        kxy = 1
+        if use_edges:
+            kout = 3
+        else:
+            kout = 1
+
+
+        conv = self.conv('conv_out', relu1_4, kxy, kxy, kout)
+
+        if use_edges:
+            softmax = self.softmax('out', conv)
+            bg, fg, edge = tf.unpack(softmax, num=3, axis=3)
+            out = softmax  # tf.expand_dims(tf.add_n([fg, 2*edge]), 3)
+            self.ge('prediction', fg, tf.constant(0.5))
+            self.layers['bg'] = bg
+            self.layers['fg'] = fg
+            self.layers['edge'] = edge
+        else:
+            out = tf.sigmoid(conv, 'out')
+            self.ge('prediction', out, tf.constant(0.5))
+        crop_size =0
+        return out, 0
 
 class SegNetG(Network):
 
@@ -328,7 +442,7 @@ class GANTrainer(object):
         self.hist_summaries_g = []
         self.image_summaries = []
         if Unet:
-            self.netG = SegUNetG
+            self.netG = SegUNetG2
         else:
             self.netG = SegNetG
 
