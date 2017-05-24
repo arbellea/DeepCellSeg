@@ -699,7 +699,7 @@ if __name__ == "__main__":
     restore = True if args.restore else False
     test_only = True if args.test_only else False
     run_name = args.run_name if args.run_name else 'default_run'
-    use_edges_flag = True if args.use_edges else False
+    use_edges_flag = False if args.use_edges else True
     use_crossentropy_flag = float(args.use_crossentropy) if args.use_crossentropy else 0.
     learning_rate = float(args.learning_rate) if args.learning_rate else 0.001
     max_iter = float(args.max_iter) if args.max_iter else 1000000
