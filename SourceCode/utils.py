@@ -100,7 +100,7 @@ def run_session():
 
 def one_hot(x, depth):
     # workaround by name-name
-    sparse_labels = tf.reshape(x, [-1, 1])
+    sparse_labels = tf.cast(tf.reshape(x, [-1, 1]),tf.int32)
     derived_size = tf.shape(sparse_labels)[0]
     indices = tf.reshape(tf.range(0, derived_size, 1), [-1, 1])
     concated = tf.concat(1, [indices, sparse_labels])
