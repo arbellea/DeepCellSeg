@@ -357,13 +357,13 @@ class GANTrainer(object):
                     cropped_seg = tf.slice(train_seg_batch, [0, crop_size, crop_size, 0],
                                            [-1, target_hw[0], target_hw[1], -1])
                     seg_vec = tf.saturate_cast(tf.reshape(cropped_seg, [-1]), tf.uint8)
-                    seg_one_hot = tf.one_hot(seg_vec, 3)
+                    seg_one_hot = utils.one_hot(seg_vec, 3)
                     cropped_seg = tf.reshape(seg_one_hot, [-1, target_hw[0], target_hw[1], 3])
 
                     cropped_seg_gan = tf.slice(train_seg_batch_gan, [0, crop_size, crop_size, 0],
                                            [-1, target_hw[0], target_hw[1], -1])
                     seg_vec_gan = tf.saturate_cast(tf.reshape(cropped_seg_gan, [-1]), tf.uint8)
-                    seg_one_hot_gan = tf.one_hot(seg_vec_gan, 3)
+                    seg_one_hot_gan = utils.one_hot(seg_vec_gan, 3)
                     cropped_seg_gan = tf.reshape(seg_one_hot_gan, [-1, target_hw[0], target_hw[1], 3])
 
                 else:
@@ -410,12 +410,12 @@ class GANTrainer(object):
                     val_cropped_seg = tf.slice(val_seg_batch, [0, crop_size, crop_size, 0],
                                                [-1, target_hw[0], target_hw[1], -1])
                     val_seg_vec = tf.saturate_cast(tf.reshape(val_cropped_seg, [-1]), tf.uint8)
-                    val_seg_one_hot = tf.one_hot(val_seg_vec, 3)
+                    val_seg_one_hot = utils.one_hot(val_seg_vec, 3)
                     val_cropped_seg = tf.reshape(val_seg_one_hot, [-1, target_hw[0], target_hw[1], 3])
                     val_cropped_seg_gan = tf.slice(val_seg_batch_gan, [0, crop_size, crop_size, 0],
                                                [-1, target_hw[0], target_hw[1], -1])
                     val_seg_vec_gan = tf.saturate_cast(tf.reshape(val_cropped_seg_gan, [-1]), tf.uint8)
-                    val_seg_one_hot_gan = tf.one_hot(val_seg_vec_gan, 3)
+                    val_seg_one_hot_gan = utils.one_hot(val_seg_vec_gan, 3)
                     val_cropped_seg_gan = tf.reshape(val_seg_one_hot_gan, [-1, target_hw[0], target_hw[1], 3])
 
                 else:
