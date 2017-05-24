@@ -121,6 +121,7 @@ class SegUNetG(Network):
         relu = self.leaky_relu('relu7', bn)
         crop_size += (kxy-1)/2
 
+
         # Layer 8
         kxy = 1
         if use_edges:
@@ -132,6 +133,9 @@ class SegUNetG(Network):
         conv = self.conv('conv8', concat, kxy, kxy, kout)
         bn = self.batch_norm('bn8', conv, phase_train, reuse)
         relu = self.leaky_relu('relu8', bn)
+        kxy = 3
+        out_shape = self.image_batch.get_shape().as_list()[:3] + [kout]
+        conv = self.conv2d_transpose('conv9', relu, kxy, kxy, kout, outshape=out_shape, stride=[1, 1, 1, 1])
         crop_size += (kxy-1)/2
 
         if use_edges:
