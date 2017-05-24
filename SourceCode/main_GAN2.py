@@ -507,7 +507,7 @@ class GANTrainer(object):
 
         coord = tf.train.Coordinator()
         init_op = tf.group(tf.global_variables_initializer(), tf.local_variables_initializer())
-        with tf.Session() as sess:
+        with tf.Session(config=tf.ConfigProto(log_device_placement=True, allow_soft_placement=True)) as sess:
 
             sess.run(init_op)
             t = 0
@@ -602,7 +602,7 @@ class GANTrainer(object):
         saver = tf.train.Saver(var_list=tf.global_variables(), allow_empty=True)
         coord = tf.train.Coordinator()
         init_op = tf.group(tf.global_variables_initializer(), tf.local_variables_initializer())
-        with tf.Session() as sess:
+        with tf.Session(config=tf.ConfigProto(log_device_placement=True, allow_soft_placement=True)) as sess:
 
             sess.run(init_op)
             threads = tf.train.start_queue_runners(sess, coord=coord)
