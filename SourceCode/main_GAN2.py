@@ -203,7 +203,7 @@ class SegNetG(Network):
         conv = self.conv('conv5', bn, kxy, kxy, kout)
         crop_size += (kxy-1)/2
         if use_edges:
-            softmax = self.softmax('out', conv)
+            softmax = self.softmax('out', conv, 3)
             bg, fg, edge = tf.unpack(softmax, num=3, axis=3)
             out = softmax  # tf.expand_dims(tf.add_n([fg, 2*edge]), 3)
             self.ge('prediction', fg, tf.constant(0.5))

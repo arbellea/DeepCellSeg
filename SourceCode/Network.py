@@ -117,8 +117,8 @@ class Network(object):
         return tf.argmax(in_tensor, axis=axis, name=name)
 
     @layer
-    def softmax(self, name, in_tensor):
-        return tf.nn.softmax(in_tensor, name=name)
+    def softmax(self, name, in_tensor, dim=3):
+        return tf.nn.softmax(in_tensor, name=name, dim=dim)
 
     @layer
     def ge(self, name, in_tensor, thr):
