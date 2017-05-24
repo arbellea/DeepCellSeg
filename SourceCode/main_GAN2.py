@@ -340,7 +340,7 @@ class GANTrainer(object):
                 with tf.variable_scope('net_g'):
                     gan_seg_batch, crop_size = net_g.build(True, use_edges=use_edges)
                 target_hw = gan_seg_batch.get_shape().as_list()[1:3]
-                target_hw = map(int, target_hw)
+                target_hw = [int(hw) for hw in target_hw]
                 cropped_image = tf.slice(train_image_batch, [0, crop_size, crop_size, 0],
                                          [-1, target_hw[0], target_hw[1], -1])
                 if use_edges:
