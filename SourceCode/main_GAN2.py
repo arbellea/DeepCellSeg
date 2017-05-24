@@ -142,7 +142,7 @@ class SegUNetG(Network):
         else:
             out = tf.sigmoid(conv, 'out')
             self.ge('prediction', out, tf.constant(0.5))
-
+        crop_size =0
         return out, 0
 
 
