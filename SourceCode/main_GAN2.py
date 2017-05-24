@@ -209,7 +209,7 @@ class SegUNetG2(Network):
 
         kout = 512
         out_shape = relu4_2.get_shape().as_list()[:3] + [kout]
-        up_5_2 = self.conv2d_transpose('conv_up5', relu5_2, kxy, kxy, kout, outshape=out_shape, stride=[1, 1, 1, 1])
+        up_5_2 = self.conv2d_transpose('conv_up5', relu5_2, kxy, kxy, kout, outshape=out_shape, stride=[1, 2, 2, 1])
         concat_4 = self.concat('concat4', [relu4_2, up_5_2], dim=3)
         relu_4_3 = conv_bn_rel(concat_4,kxy, kout, id)
         id +=1
@@ -218,7 +218,7 @@ class SegUNetG2(Network):
         relu4_4 = conv_bn_rel(relu_4_3, kxy, kout, id)
         id += 1
         out_shape = relu3_2.get_shape().as_list()[:3] + [kout]
-        up_4_4 = self.conv2d_transpose('conv_up4', relu4_4, kxy, kxy, kout, outshape=out_shape, stride=[1, 1, 1, 1])
+        up_4_4 = self.conv2d_transpose('conv_up4', relu4_4, kxy, kxy, kout, outshape=out_shape, stride=[1, 2, 2, 1])
         concat_3 = self.concat('concat3', [relu3_2, up_4_4], dim=3)
         relu3_3 = conv_bn_rel(concat_3, kxy, kout, id)
         id += 1
@@ -226,7 +226,7 @@ class SegUNetG2(Network):
         relu3_4 = conv_bn_rel(relu3_3, kxy, kout, id)
         id += 1
         out_shape = relu2_2.get_shape().as_list()[:3] + [kout]
-        up_3_4 = self.conv2d_transpose('conv_up3', relu3_4, kxy, kxy, kout, outshape=out_shape, stride=[1, 1, 1, 1])
+        up_3_4 = self.conv2d_transpose('conv_up3', relu3_4, kxy, kxy, kout, outshape=out_shape, stride=[1, 2, 2, 1])
 
         concat_2 = self.concat('concat2', [relu2_2, up_3_4], dim=3)
         relu2_3 = conv_bn_rel(concat_2, kxy, kout, id)
@@ -235,7 +235,7 @@ class SegUNetG2(Network):
         relu2_4 = conv_bn_rel(relu2_3, kxy, kout, id)
         id += 1
         out_shape = relu1_2.get_shape().as_list()[:3] + [kout]
-        up_2_4 = self.conv2d_transpose('conv_up2', relu2_4, kxy, kxy, kout, outshape=out_shape, stride=[1, 1, 1, 1])
+        up_2_4 = self.conv2d_transpose('conv_up2', relu2_4, kxy, kxy, kout, outshape=out_shape, stride=[1, 2, 2, 1])
         concat_1 = self.concat('concat1', [relu1_2, up_2_4], dim=3)
         relu1_3 = conv_bn_rel(concat_1, kxy, kout, id)
         id += 1
