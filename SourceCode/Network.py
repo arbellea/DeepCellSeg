@@ -117,7 +117,7 @@ class Network(object):
         return tf.argmax(in_tensor, axis=axis, name=name)
 
     @layer
-    def softmax(self, name, in_tensor, dim=3):
+    def softmax(self, name, in_tensor, dim=-1):
         return tf.nn.softmax(in_tensor, name=name, dim=dim)
 
     @layer
