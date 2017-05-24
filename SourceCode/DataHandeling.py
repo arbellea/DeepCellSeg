@@ -149,7 +149,7 @@ class CSVSegReaderRandom(object):
 
 class CSVSegReaderRandom2(object):
 
-    def __init__(self, filenames, base_folder='.', image_size=(), crop_size=(250, 250), num_threads=4,
+    def __init__(self, filenames, base_folder='.', image_size=(), crop_size=(128, 128), num_threads=4,
                  capacity=20, min_after_dequeue=10,
                  random_rotate=tf.random_uniform([], minval=0, maxval=2, dtype=tf.int32), num_examples=None):
         """
