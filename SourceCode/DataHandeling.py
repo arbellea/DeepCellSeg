@@ -13,7 +13,7 @@ __author__ = 'assafarbelle'
 class CSVSegReader(object):
 
     def __init__(self, filenames, base_folder='.', image_size=(64, 64, 1), num_threads=4,
-                 capacity=20, min_after_dequeue=10, random=True):
+                 capacity=20, min_after_dequeue=10, random=True, data_format='NCHW'):
         """
         CSVSegReader is a class that reads csv files containing paths to input image and segmentation image and outputs
         batches of corresponding image inputs and segmentation inputs.
@@ -37,6 +37,7 @@ class CSVSegReader(object):
         self.batch_size = None
         self.base_folder = base_folder
         self.random = random
+        self.data_format = data_format
 
     def _get_image(self):
 
@@ -69,13 +70,17 @@ class CSVSegReader(object):
                                                                          batch_size=self.batch_size,
                                                                          capacity=self.capacity,
                                                                          allow_smaller_final_batch=True)
+        if self.data_format == 'NCHW':
+            image_batch = tf.transpose(image_batch, perm=[0, 3, 1, 2])
+            seg_batch = tf.transpose(seg_batch, perm=[0, 3, 1, 2])
+
         return image_batch, seg_batch, filename_batch
 
 
 class CSVSegReaderRandom(object):
 
     def __init__(self, filenames, base_folder='.', image_size=(), crop_size=(64, 64), num_threads=4,
-                 capacity=20, min_after_dequeue=10,
+                 capacity=20, min_after_dequeue=10, data_format='NCHW',
                  random_rotate=tf.random_uniform([], minval=0, maxval=2, dtype=tf.int32)):
         """
         CSVSegReader is a class that reads csv files containing paths to input image and segmentation image and outputs
@@ -100,6 +105,7 @@ class CSVSegReaderRandom(object):
         self.min_after_dequeue = min_after_dequeue
         self.batch_size = None
         self.base_folder = base_folder
+        self.data_format = data_format
 
     def _get_image(self):
         _, records = self.reader.read(self.input_queue)
@@ -143,15 +149,18 @@ class CSVSegReaderRandom(object):
                                                                         num_threads=self.num_threads,
                                                                         capacity=self.capacity,
                                                                         min_after_dequeue=self.min_after_dequeue)
+        if self.data_format == 'NCHW':
+            image_batch = tf.transpose(image_batch, perm=[0, 3, 1, 2])
+            seg_batch = tf.transpose(seg_batch, perm=[0, 3, 1, 2])
 
         return image_batch, seg_batch, filename_batch
 
 
 class CSVSegReaderRandom2(object):
 
-    def __init__(self, filenames, base_folder='.', image_size=(), crop_size=(128, 128), crops_per_image=50, num_threads=4,
-                 capacity=20, min_after_dequeue=10,
-                 random_rotate=tf.random_uniform([], minval=0, maxval=2, dtype=tf.int32), num_examples=None):
+    def __init__(self, filenames, base_folder='.', image_size=(), crop_size=(128, 128), crops_per_image=50,
+                 num_threads=4, capacity=20, min_after_dequeue=10, num_examples=None, data_format='NCHW',
+                 random_rotate=tf.random_uniform([], minval=0, maxval=2, dtype=tf.int32)):
         """
         CSVSegReader is a class that reads csv files containing paths to input image and segmentation image and outputs
         batches of corresponding image inputs and segmentation inputs.
@@ -170,7 +179,7 @@ class CSVSegReaderRandom2(object):
             with open(filename, 'r') as csv_file:
                 csv_reader = csv.reader(csv_file, delimiter=',', quotechar='|')
                 for row in csv_reader:
-                   raw_filenames.append(row[0]+':'+row[1])
+                    raw_filenames.append(row[0]+':'+row[1])
 
         self.partial_frame = 0
 
@@ -181,17 +190,14 @@ class CSVSegReaderRandom2(object):
             raw_filenames = raw_filenames[-num_examples:]
         elif isinstance(num_examples, float) and num_examples < 1:
             self.partial_frame = num_examples
-            if num_examples <=0:
+            if num_examples <= 0:
                 ValueError('number of examples has to be positive')
             raw_filenames = raw_filenames[-1:]
-            #seg_filenames = seg_filenames[:num_examples]
+
         elif isinstance(num_examples, list):
             raw_filenames = [f_name for n, f_name in enumerate(raw_filenames) if n in num_examples]
-            #seg_filenames = [f_name for n, f_name in enumerate(seg_filenames) if n in num_examples]
 
         self.raw_queue = tf.train.string_input_producer(raw_filenames, seed=0)
-        #self.seg_queue = tf.train.string_input_producer(seg_filenames, seed=0)
-
         self.image_size = image_size
         self.crop_size = crop_size
         self.crops_per_image =crops_per_image
@@ -202,11 +208,11 @@ class CSVSegReaderRandom2(object):
         self.min_after_dequeue = min_after_dequeue
         self.batch_size = None
         self.base_folder = base_folder
+        self.data_format = data_format
 
     def _get_image(self):
 
         im_filename = tf.sparse_tensor_to_dense(tf.string_split(tf.expand_dims(self.raw_queue.dequeue(), 0), ':'), '')
-        #seg_filename = self.seg_queue.dequeue()
         im_filename.set_shape([1, 2])
         im_raw = tf.read_file(self.base_folder+im_filename[0][0])
         seg_raw = tf.read_file(self.base_folder+im_filename[0][1])
@@ -261,6 +267,9 @@ class CSVSegReaderRandom2(object):
                                                       min_after_dequeue=self.min_after_dequeue,
                                                       enqueue_many=True
                                                       )
+        if self.data_format == 'NCHW':
+            image_batch = tf.transpose(image_batch, perm=[0, 3, 1, 2])
+            seg_batch = tf.transpose(seg_batch, perm=[0, 3, 1, 2])
 
         return image_batch, seg_batch, filename_batch
 
@@ -268,7 +277,7 @@ class CSVSegReaderRandom2(object):
 class CSVSegReader2(object):
 
     def __init__(self, filenames, base_folder='.', image_size=(64, 64, 1), num_threads=4,
-                 capacity=20, min_after_dequeue=10, num_examples=None, random=True):
+                 capacity=20, min_after_dequeue=10, num_examples=None, random=True, data_format='NCHW'):
         """
         CSVSegReader is a class that reads csv files containing paths to input image and segmentation image and outputs
         batches of corresponding image inputs and segmentation inputs.
@@ -310,6 +319,7 @@ class CSVSegReader2(object):
         self.batch_size = None
         self.base_folder = base_folder
         self.random = random
+        self.data_format = data_format
 
     def _get_image(self):
 
@@ -345,7 +355,7 @@ class CSVSegReader2(object):
                                                                          capacity=self.capacity,
                                                                          allow_smaller_final_batch=True)
 
-        # image_batch.set_shape([self.batch_size] + image_batch.get_shape().as_list()[1:])
-        # seg_batch.set_shape([self.batch_size] + seg_batch.get_shape().as_list()[1:])
-        # filename_batch.set_shape([self.batch_size] + filename_batch.get_shape().as_list()[1:])
+        if self.data_format == 'NCHW':
+            image_batch = tf.transpose(image_batch, perm=[0, 3, 1, 2])
+            seg_batch = tf.transpose(seg_batch, perm=[0, 3, 1, 2])
         return image_batch, seg_batch, filename_batch
