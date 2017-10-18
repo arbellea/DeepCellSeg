@@ -1138,8 +1138,8 @@ class GANTrainer(object):
         test_hard_seg = tf.round(gan_seg_batch)
         test_intersection = tf.multiply(cropped_seg, test_hard_seg)
         test_union = tf.subtract(tf.add(cropped_seg, test_hard_seg), test_intersection)
-        test_dice = tf.reduce_mean(tf.div(tf.add(tf.reduce_sum(test_intersection, [1, 2]), eps),
-                                          tf.add(tf.reduce_sum(test_union, [1, 2]), eps)))
+        test_dice = tf.reduce_mean(tf.div(tf.add(tf.reduce_sum(test_intersection, [2, 3]), eps),
+                                          tf.add(tf.reduce_sum(test_union, [2, 3]), eps)))
         saver = tf.train.Saver(var_list=tf.global_variables(), allow_empty=True)
         coord = tf.train.Coordinator()
         init_op = tf.group(tf.global_variables_initializer(), tf.local_variables_initializer())
