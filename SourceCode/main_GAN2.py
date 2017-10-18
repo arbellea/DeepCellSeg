@@ -36,14 +36,16 @@ SNAPSHOT_DIR = os.environ.get('SNAPSHOT_DIR', DEFAULT_SNAPSHOT_DIR)
 LOG_DIR = os.environ.get('LOG_DIR', DEFAULT_LOG_DIR)
 OUT_DIR = os.environ.get('OUT_DIR', DEFAULT_OUT_DIR)
 
+
 class SegUNetG(Network):
 
     def __init__(self, image_batch):
         self.image_batch = image_batch
+        self.data_format = 'NCHW'
         super(SegUNetG, self).__init__()
 
     def build(self, phase_train, reuse=None, use_edges=False):
-        crop_size = 0
+
         # Layer 1
         kxy = 7
         kout = 16
@@ -51,10 +53,7 @@ class SegUNetG(Network):
         conv = self.conv('conv1',  self.image_batch, kxy, kxy, kout)
         bn = self.batch_norm('bn1',conv, phase_train, reuse)
         relu = self.leaky_relu('relu1', bn)
-        pool = self.max_pool('pool1', relu, ksize=[1,2,2,1], strides=[1,2,2,1])
-
-        crop_size += (kxy-1)/2
-
+        pool = self.max_pool('pool1', relu, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1])
 
         # Layer 2
         kxy = 3
@@ -63,8 +62,7 @@ class SegUNetG(Network):
         conv = self.conv('conv2', pool, kxy, kxy, kout)
         bn = self.batch_norm('bn2', conv, phase_train, reuse)
         relu = self.leaky_relu('relu2', bn)
-        pool = self.max_pool('pool2', relu, ksize=[1,2,2,1], strides=[1,2,2,1])
-        crop_size += (kxy-1)/2
+        pool = self.max_pool('pool2', relu, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1])
 
         # Layer 3
         kxy = 3
@@ -73,8 +71,7 @@ class SegUNetG(Network):
         conv = self.conv('conv3', pool, kxy, kxy, kout)
         bn = self.batch_norm('bn3', conv, phase_train, reuse)
         relu = self.leaky_relu('relu3', bn)
-        pool = self.max_pool('pool3', relu, ksize=[1,2,2,1], strides=[1,2,2,1])
-        crop_size += (kxy-1)/2
+        pool = self.max_pool('pool3', relu, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1])
 
         # Layer 4
         kxy = 1
@@ -83,45 +80,49 @@ class SegUNetG(Network):
         conv = self.conv('conv4', pool, kxy, kxy, kout)
         bn = self.batch_norm('bn4',conv , phase_train, reuse)
         relu = self.leaky_relu('relu4', bn)
-        crop_size += (kxy-1)/2
 
         # Start Upsampeling
 
         # Layer 5
         kxy = 3
         kout = 32
-
-        out_shape = self.layers['relu3'].get_shape().as_list()[:3]+[kout]
-        conv = self.conv2d_transpose('conv5', relu, kxy, kxy, kout, outshape=out_shape, stride=[1,2,2,1])
+        in_shape = self.layers['relu3'].get_shape().as_list()
+        if self.channel_first:
+            out_shape = [in_shape[0],kout]+in_shape[2:]
+        else:
+            out_shape = self.layers['relu3'].get_shape().as_list()[:3]+[kout]
+        conv = self.conv2d_transpose('conv5', relu, kxy, kxy, kout, outshape=out_shape, stride=[1, 2, 2, 1])
         s = conv.get_shape().is_fully_defined()
         bn = self.batch_norm('bn5', conv, phase_train, reuse)
         relu = self.leaky_relu('relu5', bn)
-        crop_size += (kxy-1)/2
 
         # Layer 6
         kxy = 3
         kout = 32
         concat = self.concat('concat1', [relu, self.layers['relu3']])
 
-
-        out_shape = self.layers['relu2'].get_shape().as_list()[:3] + [kout]
-        conv = self.conv2d_transpose('conv6', concat, kxy, kxy, kout,outshape=out_shape, stride=[1,2,2,1])
+        in_shape = self.layers['relu2'].get_shape().as_list()
+        if self.channel_first:
+            out_shape = [in_shape[0],kout]+in_shape[2:]
+        else:
+            out_shape = self.layers['relu2'].get_shape().as_list()[:3]+[kout]
+        conv = self.conv2d_transpose('conv6', concat, kxy, kxy, kout,outshape=out_shape, stride=[1, 2, 2, 1])
         bn = self.batch_norm('bn6', conv, phase_train, reuse)
         relu = self.leaky_relu('relu6', bn)
-        crop_size += (kxy-1)/2
 
         # Layer 7
         kxy = 7
         kout = 16
         concat = self.concat('concat7', [relu, self.layers['relu2']])
 
-
-        out_shape = self.layers['relu1'].get_shape().as_list()[:3] + [kout]
-        conv = self.conv2d_transpose('conv7', concat, kxy, kxy, kout, outshape=out_shape, stride=[1,2,2,1])
+        in_shape = self.layers['relu1'].get_shape().as_list()
+        if self.channel_first:
+            out_shape = [in_shape[0],kout]+in_shape[2:]
+        else:
+            out_shape = self.layers['relu1'].get_shape().as_list()[:3]+[kout]
+        conv = self.conv2d_transpose('conv7', concat, kxy, kxy, kout, outshape=out_shape, stride=[1, 2, 2, 1])
         bn = self.batch_norm('bn7', conv, phase_train, reuse)
         relu = self.leaky_relu('relu7', bn)
-        crop_size += (kxy-1)/2
-
 
         # Layer 8
         kxy = 1
@@ -135,13 +136,21 @@ class SegUNetG(Network):
         bn = self.batch_norm('bn8', conv, phase_train, reuse)
         relu = self.leaky_relu('relu8', bn)
         kxy = 3
-        out_shape = self.image_batch.get_shape().as_list()[:3] + [kout]
+
+        in_shape = self.image_batch.get_shape().as_list()
+        if self.channel_first:
+            out_shape = [in_shape[0],kout]+in_shape[2:]
+        else:
+            out_shape = self.image_batch.get_shape().as_list()[:3]+[kout]
         conv = self.conv2d_transpose('conv9', relu, kxy, kxy, kout, outshape=out_shape, stride=[1, 1, 1, 1])
-        crop_size += (kxy-1)/2
 
         if use_edges:
-            softmax = self.softmax('out', conv)
-            bg, fg, edge = tf.unstack(softmax, num=3, axis=3)
+            if self.channel_first:
+                softmax = self.softmax('out', conv, 1)
+                bg, fg, edge = tf.unstack(softmax, num=3, axis=1)
+            else:
+                softmax = self.softmax('out', conv, 3)
+                bg, fg, edge = tf.unstack(softmax, num=3, axis=3)
             out = softmax  # tf.expand_dims(tf.add_n([fg, 2*edge]), 3)
             self.ge('prediction', fg, tf.constant(0.5))
             self.layers['bg'] = bg
@@ -150,99 +159,120 @@ class SegUNetG(Network):
         else:
             out = tf.sigmoid(conv, 'out')
             self.ge('prediction', out, tf.constant(0.5))
-        crop_size =0
+
         return out, 0
+
 
 class SegUNetG2(Network):
 
     def __init__(self, image_batch):
         self.image_batch = image_batch
+        self.data_format = 'NCHW'
         super(SegUNetG2, self).__init__()
 
     def build(self, phase_train, reuse=None, use_edges=False):
 
-        def conv_bn_rel(ten_in, kxy, kout, id):
-            conv = self.conv('conv%d'%id, ten_in, kxy, kxy, kout, padding='SAME')
-            bn = self.batch_norm('bn%d'%id, conv, phase_train, reuse)
-            relu = self.leaky_relu('relu%d'%id, bn)
+        def conv_bn_rel(ten_in, kxy, kout, idx):
+            conv_ = self.conv('conv%d'%idx, ten_in, kxy, kxy, kout, padding='SAME')
+            bn = self.batch_norm('bn%d'%idx, conv_, phase_train, reuse)
+            relu = self.leaky_relu('relu%d'%idx, bn)
             return  relu
         # Layer 1 Left
         kxy = 3
         kout = 64
-        id = 1
-        relu1_1 = conv_bn_rel(self.image_batch, kxy, kout, id)
-        id += 1
-        relu1_2 = conv_bn_rel(relu1_1, kxy, kout, id)
-        id += 1
+        idx = 1
+        relu1_1 = conv_bn_rel(self.image_batch, kxy, kout, idx)
+        idx += 1
+        relu1_2 = conv_bn_rel(relu1_1, kxy, kout, idx)
+        idx += 1
         pool1_2 = self.max_pool('pool1', relu1_2, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1])
 
         #Layer 2 Left
 
         kout = 128
-        relu2_1 = conv_bn_rel(pool1_2, kxy, kout, id)
-        id += 1
-        relu2_2 = conv_bn_rel(relu2_1, kxy, kout, id)
-        id += 1
+        relu2_1 = conv_bn_rel(pool1_2, kxy, kout, idx)
+        idx += 1
+        relu2_2 = conv_bn_rel(relu2_1, kxy, kout, idx)
+        idx += 1
         pool2_2 = self.max_pool('pool2', relu2_2, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1])
 
         # Layer 3 Left
         kout = 256
-        relu3_1 = conv_bn_rel(pool2_2, kxy, kout, id)
-        id += 1
-        relu3_2 = conv_bn_rel(relu3_1, kxy, kout, id)
-        id += 1
+        relu3_1 = conv_bn_rel(pool2_2, kxy, kout, idx)
+        idx += 1
+        relu3_2 = conv_bn_rel(relu3_1, kxy, kout, idx)
+        idx += 1
         pool3_2 = self.max_pool('pool3', relu3_2, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1])
 
         # Layer 4 Left
         kout = 512
-        relu4_1 = conv_bn_rel(pool3_2, kxy, kout, id)
-        id += 1
-        relu4_2 = conv_bn_rel(relu4_1, kxy, kout, id)
-        id += 1
+        relu4_1 = conv_bn_rel(pool3_2, kxy, kout, idx)
+        idx += 1
+        relu4_2 = conv_bn_rel(relu4_1, kxy, kout, idx)
+        idx += 1
         pool4_2 = self.max_pool('pool4', relu4_2, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1])
 
         # Layer 5 Left
         kout = 1024
-        relu5_1 = conv_bn_rel(pool4_2, kxy, kout, id)
-        id += 1
-        relu5_2 = conv_bn_rel(relu5_1, kxy, kout, id)
-        id += 1
+        relu5_1 = conv_bn_rel(pool4_2, kxy, kout, idx)
+        idx += 1
+        relu5_2 = conv_bn_rel(relu5_1, kxy, kout, idx)
+        idx += 1
 
         kout = 512
-        out_shape = relu4_2.get_shape().as_list()[:3] + [kout]
+        in_shape = relu4_2.get_shape().as_list()
+        if self.channel_first:
+            out_shape = [in_shape[0], kout]+in_shape[2:]
+        else:
+            out_shape = in_shape[:3]+[kout]
+
         up_5_2 = self.conv2d_transpose('conv_up5', relu5_2, kxy, kxy, kout, outshape=out_shape, stride=[1, 2, 2, 1])
         concat_4 = self.concat('concat4', [relu4_2, up_5_2], dim=3)
-        relu_4_3 = conv_bn_rel(concat_4,kxy, kout, id)
-        id +=1
+        relu_4_3 = conv_bn_rel(concat_4,kxy, kout, idx)
+        idx +=1
 
         kout = 256
-        relu4_4 = conv_bn_rel(relu_4_3, kxy, kout, id)
-        id += 1
-        out_shape = relu3_2.get_shape().as_list()[:3] + [kout]
+        relu4_4 = conv_bn_rel(relu_4_3, kxy, kout, idx)
+        idx += 1
+        in_shape = relu3_2.get_shape().as_list()
+        if self.channel_first:
+            out_shape = [in_shape[0], kout]+in_shape[2:]
+        else:
+            out_shape = in_shape[:3]+[kout]
+
         up_4_4 = self.conv2d_transpose('conv_up4', relu4_4, kxy, kxy, kout, outshape=out_shape, stride=[1, 2, 2, 1])
         concat_3 = self.concat('concat3', [relu3_2, up_4_4], dim=3)
-        relu3_3 = conv_bn_rel(concat_3, kxy, kout, id)
-        id += 1
+        relu3_3 = conv_bn_rel(concat_3, kxy, kout, idx)
+        idx += 1
         kout = 128
-        relu3_4 = conv_bn_rel(relu3_3, kxy, kout, id)
-        id += 1
-        out_shape = relu2_2.get_shape().as_list()[:3] + [kout]
+        relu3_4 = conv_bn_rel(relu3_3, kxy, kout, idx)
+        idx += 1
+        in_shape = relu2_2.get_shape().as_list()
+        if self.channel_first:
+            out_shape = [in_shape[0], kout]+in_shape[2:]
+        else:
+            out_shape = in_shape[:3]+[kout]
+
         up_3_4 = self.conv2d_transpose('conv_up3', relu3_4, kxy, kxy, kout, outshape=out_shape, stride=[1, 2, 2, 1])
 
         concat_2 = self.concat('concat2', [relu2_2, up_3_4], dim=3)
-        relu2_3 = conv_bn_rel(concat_2, kxy, kout, id)
-        id += 1
+        relu2_3 = conv_bn_rel(concat_2, kxy, kout, idx)
+        idx += 1
         kout = 64
-        relu2_4 = conv_bn_rel(relu2_3, kxy, kout, id)
-        id += 1
-        out_shape = relu1_2.get_shape().as_list()[:3] + [kout]
+        relu2_4 = conv_bn_rel(relu2_3, kxy, kout, idx)
+        idx += 1
+        in_shape = relu1_2.get_shape().as_list()
+        if self.channel_first:
+            out_shape = [in_shape[0], kout]+in_shape[2:]
+        else:
+            out_shape = in_shape[:3]+[kout]
+
         up_2_4 = self.conv2d_transpose('conv_up2', relu2_4, kxy, kxy, kout, outshape=out_shape, stride=[1, 2, 2, 1])
         concat_1 = self.concat('concat1', [relu1_2, up_2_4], dim=3)
-        relu1_3 = conv_bn_rel(concat_1, kxy, kout, id)
-        id += 1
-        relu1_4 = conv_bn_rel(relu1_3, kxy, kout, id)
-        id += 1
-
+        relu1_3 = conv_bn_rel(concat_1, kxy, kout, idx)
+        idx += 1
+        relu1_4 = conv_bn_rel(relu1_3, kxy, kout, idx)
+        idx += 1
 
         # Layer 8
         kxy = 1
@@ -251,12 +281,15 @@ class SegUNetG2(Network):
         else:
             kout = 1
 
-
         conv = self.conv('conv_out', relu1_4, kxy, kxy, kout)
 
         if use_edges:
-            softmax = self.softmax('out', conv)
-            bg, fg, edge = tf.unstack(softmax, num=3, axis=3)
+            if self.channel_first:
+                softmax = self.softmax('out', conv, 1)
+                bg, fg, edge = tf.unstack(softmax, num=3, axis=1)
+            else:
+                softmax = self.softmax('out', conv, 3)
+                bg, fg, edge = tf.unstack(softmax, num=3, axis=3)
             out = softmax  # tf.expand_dims(tf.add_n([fg, 2*edge]), 3)
             self.ge('prediction', fg, tf.constant(0.5))
             self.layers['bg'] = bg
@@ -265,14 +298,18 @@ class SegUNetG2(Network):
         else:
             out = tf.sigmoid(conv, 'out')
             self.ge('prediction', out, tf.constant(0.5))
-        crop_size =0
         return out, 0
+
 
 class SegUNetG3(Network):
 
     def __init__(self, image_batch):
         self.image_batch = self.fix_image_size(image_batch)
+        self.data_format = 'NCHW'
         super(SegUNetG3, self).__init__()
+
+
+
     @staticmethod
     def fix_image_size(image_batch):
         im_size = image_batch.get_shape().as_list()[1:3]
@@ -293,99 +330,111 @@ class SegUNetG3(Network):
         fixed_image_batch = tf.slice(image_batch, [0, start_y, start_x, 0], [-1, new_h, new_w, -1])
         return fixed_image_batch
 
-
     def build(self, phase_train, reuse=None, use_edges=False):
 
-
-
-        def conv_bn_rel(ten_in, kxy, kout, id):
-            conv = self.conv('conv%d'%id, ten_in, kxy, kxy, kout, padding='SAME')
-            bn = self.batch_norm('bn%d'%id, conv, phase_train, reuse)
-            relu = self.leaky_relu('relu%d'%id, bn)
+        def conv_bn_rel(ten_in, kxy, kout, idx):
+            conv_ = self.conv('conv%d'%idx, ten_in, kxy, kxy, kout, padding='SAME')
+            bn = self.batch_norm('bn%d'%idx, conv_, phase_train, reuse)
+            relu = self.leaky_relu('relu%d'%idx, bn)
             return relu
         # Layer 1 Left
         kxy = 3
         kout = 64
-        id = 1
-        relu1_1 = conv_bn_rel(self.image_batch, kxy, kout, id)
-        id += 1
-        relu1_2 = conv_bn_rel(relu1_1, kxy, kout, id)
-        id += 1
+        idx = 1
+        relu1_1 = conv_bn_rel(self.image_batch, kxy, kout, idx)
+        idx += 1
+        relu1_2 = conv_bn_rel(relu1_1, kxy, kout, idx)
+        idx += 1
         pool1_2 = self.max_pool('pool1', relu1_2, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1])
 
-        #Layer 2 Left
-
+        # Layer 2 Left
         kout = 128
-        relu2_1 = conv_bn_rel(pool1_2, kxy, kout, id)
-        id += 1
-        relu2_2 = conv_bn_rel(relu2_1, kxy, kout, id)
-        id += 1
+        relu2_1 = conv_bn_rel(pool1_2, kxy, kout, idx)
+        idx += 1
+        relu2_2 = conv_bn_rel(relu2_1, kxy, kout, idx)
+        idx += 1
         pool2_2 = self.max_pool('pool2', relu2_2, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1])
 
         # Layer 3 Left
         kout = 256
-        relu3_1 = conv_bn_rel(pool2_2, kxy, kout, id)
-        id += 1
-        relu3_2 = conv_bn_rel(relu3_1, kxy, kout, id)
-        id += 1
+        relu3_1 = conv_bn_rel(pool2_2, kxy, kout, idx)
+        idx += 1
+        relu3_2 = conv_bn_rel(relu3_1, kxy, kout, idx)
+        idx += 1
         pool3_2 = self.max_pool('pool3', relu3_2, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1])
 
         # Layer 4 Left
         kout = 512
-        relu4_1 = conv_bn_rel(pool3_2, kxy, kout, id)
-        id += 1
-        relu4_2 = conv_bn_rel(relu4_1, kxy, kout, id)
-        id += 1
+        relu4_1 = conv_bn_rel(pool3_2, kxy, kout, idx)
+        idx += 1
+        relu4_2 = conv_bn_rel(relu4_1, kxy, kout, idx)
+        idx += 1
         pool4_2 = self.max_pool('pool4', relu4_2, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1])
 
         # Layer 5 Left
         kout = 1024
-        relu5_1 = conv_bn_rel(pool4_2, kxy, kout, id)
-        id += 1
-        relu5_2 = conv_bn_rel(relu5_1, kxy, kout, id)
-        id += 1
+        relu5_1 = conv_bn_rel(pool4_2, kxy, kout, idx)
+        idx += 1
+        relu5_2 = conv_bn_rel(relu5_1, kxy, kout, idx)
+        idx += 1
 
         kout = 512
-        out_shape = [tf.shape(relu4_2)[0]]+[s for s in relu4_2.get_shape().as_list()[1:3]] + [kout]
+        in_shape = relu4_2.get_shape().as_list()
+        if self.channel_first:
+            out_shape = [tf.shape(relu4_2)[0], kout]+in_shape[2:]
+        else:
+            out_shape = [tf.shape(relu4_2)[0]]+in_shape[1:3]+[kout]
+
         up_5_2 = self.conv2d_transpose('conv_up5', relu5_2, kxy, kxy, kout, outshape=out_shape, stride=[1, 2, 2, 1])
         # relu4_2_c = tf.slice(relu4_2, [0,1,1,0],[-1, int(out_shape[1]), int(out_shape[2]), -1])
         concat_4 = self.concat('concat4', [relu4_2, up_5_2], dim=3)
-        relu_4_3 = conv_bn_rel(concat_4,kxy, kout, id)
-        id +=1
+        relu_4_3 = conv_bn_rel(concat_4,kxy, kout, idx)
+        idx +=1
 
         kout = 256
-        relu4_4 = conv_bn_rel(relu_4_3, kxy, kout, id)
-        id += 1
-        in_shape = relu4_4.get_shape().as_list()
-        out_shape = [tf.shape(relu3_2)[0]]+[s for s in relu3_2.get_shape().as_list()[1:3]] + [kout]
+        relu4_4 = conv_bn_rel(relu_4_3, kxy, kout, idx)
+        idx += 1
+        in_shape = relu3_2.get_shape().as_list()
+        if self.channel_first:
+            out_shape = [tf.shape(relu3_2)[0], kout]+in_shape[2:]
+        else:
+            out_shape = [tf.shape(relu3_2)[0]]+in_shape[1:3]+[kout]
+
         up_4_4 = self.conv2d_transpose('conv_up4', relu4_4, kxy, kxy, kout, outshape=out_shape, stride=[1, 2, 2, 1])
         # relu3_2_c = tf.slice(relu3_2, [0, 1, 1, 0], [-1, int(out_shape[1]), int(out_shape[2]), -1])
         concat_3 = self.concat('concat3', [relu3_2, up_4_4], dim=3)
-        relu3_3 = conv_bn_rel(concat_3, kxy, kout, id)
-        id += 1
+        relu3_3 = conv_bn_rel(concat_3, kxy, kout, idx)
+        idx += 1
 
         kout = 128
-        relu3_4 = conv_bn_rel(relu3_3, kxy, kout, id)
-        id += 1
-        out_shape = [tf.shape(relu2_2)[0]]+[s for s in relu2_2.get_shape().as_list()[1:3]] + [kout]
+        relu3_4 = conv_bn_rel(relu3_3, kxy, kout, idx)
+        idx += 1
+        in_shape = relu2_2.get_shape().as_list()
+        if self.channel_first:
+            out_shape = [tf.shape(relu2_2)[0], kout]+in_shape[2:]
+        else:
+            out_shape = [tf.shape(relu2_2)[0]]+in_shape[1:3]+[kout]
         up_3_4 = self.conv2d_transpose('conv_up3', relu3_4, kxy, kxy, kout, outshape=out_shape, stride=[1, 2, 2, 1])
         # relu2_2_c = tf.slice(relu2_2, [0, 1, 1, 0], [-1, int(out_shape[1]), int(out_shape[2]), -1])
         concat_2 = self.concat('concat2', [relu2_2, up_3_4], dim=3)
-        relu2_3 = conv_bn_rel(concat_2, kxy, kout, id)
-        id += 1
+        relu2_3 = conv_bn_rel(concat_2, kxy, kout, idx)
+        idx += 1
 
         kout = 64
-        relu2_4 = conv_bn_rel(relu2_3, kxy, kout, id)
-        id += 1
-        out_shape = [tf.shape(relu1_2)[0]]+[s for s in relu1_2.get_shape().as_list()[1:3]] + [kout]
+        relu2_4 = conv_bn_rel(relu2_3, kxy, kout, idx)
+        idx += 1
+        in_shape = relu1_2.get_shape().as_list()
+        if self.channel_first:
+            out_shape = [tf.shape(relu1_2)[0], kout]+in_shape[2:]
+        else:
+            out_shape = [tf.shape(relu1_2)[0]]+in_shape[1:3]+[kout]
         up_2_4 = self.conv2d_transpose('conv_up2', relu2_4, kxy, kxy, kout, outshape=out_shape, stride=[1, 2, 2, 1])
         # relu1_2_c = tf.slice(relu1_2, [0, 1, 1, 0], [-1, int(out_shape[1]), int(out_shape[2]), -1])
         concat_1 = self.concat('concat1', [relu1_2, up_2_4], dim=3)
-        relu1_3 = conv_bn_rel(concat_1, kxy, kout, id)
-        id += 1
-        relu1_4 = conv_bn_rel(relu1_3, kxy, kout, id)
-        id += 1
-
+        relu1_3 = conv_bn_rel(concat_1, kxy, kout, idx)
+        idx += 1
+        relu1_4 = conv_bn_rel(relu1_3, kxy, kout, idx)
+        idx += 1
 
         # Layer 8
         kxy = 1
@@ -394,12 +443,15 @@ class SegUNetG3(Network):
         else:
             kout = 1
 
-
         conv = self.conv('conv_out', relu1_4, kxy, kxy, kout)
 
         if use_edges:
-            softmax = self.softmax('out', conv)
-            bg, fg, edge = tf.unstack(softmax, num=3, axis=3)
+            if self.channel_first:
+                softmax = self.softmax('out', conv, 1)
+                bg, fg, edge = tf.unstack(softmax, num=3, axis=1)
+            else:
+                softmax = self.softmax('out', conv, 3)
+                bg, fg, edge = tf.unstack(softmax, num=3, axis=3)
             out = softmax  # tf.expand_dims(tf.add_n([fg, 2*edge]), 3)
             self.ge('prediction', fg, tf.constant(0.5))
             self.layers['bg'] = bg
@@ -408,16 +460,18 @@ class SegUNetG3(Network):
         else:
             out = tf.sigmoid(conv, 'out')
             self.ge('prediction', out, tf.constant(0.5))
-        crop_size = 0
         return out, 0
+
 
 class SegNetG(Network):
 
     def __init__(self, image_batch):
         self.image_batch = image_batch
+        self.data_format = 'NCHW'
         super(SegNetG, self).__init__()
 
     def build(self, phase_train, reuse=None, use_edges=False):
+
         crop_size = 0
         # Layer 1
         kxy = 9
@@ -461,8 +515,13 @@ class SegNetG(Network):
         conv = self.conv('conv5', bn, kxy, kxy, kout)
         crop_size += (kxy-1)/2
         if use_edges:
-            softmax = self.softmax('out', conv, -1)
-            bg, fg, edge = tf.unstack(softmax, num=3, axis=3)
+
+            if self.channel_first:
+                softmax = self.softmax('out', conv, 1)
+                bg, fg, edge = tf.unstack(softmax, num=3, axis=1)
+            else:
+                softmax = self.softmax('out', conv, 3)
+                bg, fg, edge = tf.unstack(softmax, num=3, axis=3)
             out = softmax  # tf.expand_dims(tf.add_n([fg, 2*edge]), 3)
             self.ge('prediction', fg, tf.constant(0.5))
             self.layers['bg'] = bg
@@ -525,8 +584,13 @@ class SegNetG2(Network):
         conv = self.conv('conv5', bn, kxy, kxy, kout)
         crop_size += (kxy-1)/2
         if use_edges:
-            softmax = self.softmax('out', conv, -1)
-            bg, fg, edge = tf.unstack(softmax, num=3, axis=3)
+            if self.channel_first:
+
+                softmax = self.softmax('out', conv, 1)
+                bg, fg, edge = tf.unstack(softmax, num=3, axis=1)
+            else:
+                softmax = self.softmax('out', conv, 3)
+                bg, fg, edge = tf.unstack(softmax, num=3, axis=3)
             out = softmax  # tf.expand_dims(tf.add_n([fg, 2*edge]), 3)
             self.ge('prediction', fg, tf.constant(0.5))
             self.layers['bg'] = bg
@@ -543,6 +607,7 @@ class RibSegNet(Network):
     def __init__(self, image_batch, seg_batch):
         self.image_batch = image_batch
         self.seg_batch = seg_batch
+        self.data_format = 'NCHW'
         super(RibSegNet, self).__init__()
 
     def build(self, phase_train, reuse=None):
@@ -603,10 +668,12 @@ class RibSegNet(Network):
 
         return out
 
+
 class RibSegNet2(Network):
     def __init__(self, image_batch, seg_batch):
         self.image_batch = image_batch
         self.seg_batch = seg_batch
+        self.data_format = 'NCHW'
         super(RibSegNet2, self).__init__()
 
     def build(self, phase_train, reuse=None):
@@ -667,10 +734,13 @@ class RibSegNet2(Network):
 
         return out
 
+
 class VGGNet(Network):
+
     def __init__(self, image_batch, seg_batch):
         self.image_batch = image_batch
         self.seg_batch = seg_batch
+        self.data_format ='NCHW'
         super(VGGNet, self).__init__()
 
     def build(self, phase_train, reuse=None):
@@ -698,8 +768,6 @@ class VGGNet(Network):
         conv9 = conv_bn_relu('9', conv8, 3, 256)
         conv10 = conv_bn_relu('10', conv9, 3, 256)
         pool10 = self.max_pool('pool_10', conv10, [1, 2, 2, 1], [1, 2, 2, 1])
-
-
 
         fc1 = self.fc('fc1', pool10, 4096, biased=False)
         relu_fc1 = self.leaky_relu('relu_fc1', fc1)
@@ -794,29 +862,29 @@ class GANTrainer(object):
                     gan_seg_batch, crop_size = net_g.build(True, use_edges=use_edges)
                 target_hw = gan_seg_batch.get_shape().as_list()[1:3]
                 target_hw = [int(hw) for hw in target_hw]
-                cropped_image = tf.slice(train_image_batch, [0, crop_size, crop_size, 0],
-                                         [-1, target_hw[0], target_hw[1], -1])
+                cropped_image = tf.slice(train_image_batch, [0, 0, crop_size, crop_size],
+                                         [-1, -1, target_hw[0], target_hw[1]])
                 if use_edges:
 
-                    cropped_seg = tf.slice(tf.to_int32(train_seg_batch), [0, crop_size, crop_size, 0],
-                                           [-1, target_hw[0], target_hw[1], -1])
+                    cropped_seg = tf.slice(tf.to_int32(train_seg_batch), [0, 0, crop_size, crop_size],
+                                           [-1, -1, target_hw[0], target_hw[1]])
                     cropped_seg = tf.squeeze(tf.one_hot(indices=cropped_seg, depth=3, axis=3), axis=4)
                     # seg_vec = tf.saturate_cast(tf.reshape(cropped_seg, [-1]), tf.uint8)
                     # seg_one_hot = utils.one_hot(seg_vec, 3)
                     # cropped_seg = tf.reshape(seg_one_hot, [-1, target_hw[0], target_hw[1], 3])
 
-                    cropped_seg_gan = tf.to_int32(tf.slice(train_seg_batch_gan, [0, crop_size, crop_size, 0],
-                                           [-1, target_hw[0], target_hw[1], -1]))
+                    cropped_seg_gan = tf.to_int32(tf.slice(train_seg_batch_gan, [0, 0, crop_size, crop_size],
+                                           [-1, -1, target_hw[0], target_hw[1]]))
                     cropped_seg_gan = tf.squeeze(tf.one_hot(indices=cropped_seg_gan, depth=3, axis=3), axis=4)
                     # seg_vec_gan = tf.saturate_cast(tf.reshape(cropped_seg_gan, [-1]), tf.uint8)
                     # seg_one_hot_gan = utils.one_hot(seg_vec_gan, 3)
                     # cropped_seg_gan = tf.reshape(seg_one_hot_gan, [-1, target_hw[0], target_hw[1], 3])
 
                 else:
-                    cropped_seg = tf.to_float(tf.equal(tf.slice(train_seg_batch, [0, crop_size, crop_size, 0],
-                                                                [-1, target_hw[0], target_hw[1], -1]), tf.constant(1.)))
-                cropped_image_gan = tf.slice(train_image_batch_gan,  [0, crop_size, crop_size, 0],
-                                             [-1, target_hw[0], target_hw[1], -1])
+                    cropped_seg = tf.to_float(tf.equal(tf.slice(train_seg_batch, [0, 0, crop_size, crop_size],
+                                                                [-1, -1, target_hw[0], target_hw[1]]), tf.constant(1.)))
+                cropped_image_gan = tf.slice(train_image_batch_gan,  [0, 0, crop_size, crop_size],
+                                             [-1, -1, target_hw[0], target_hw[1]])
 
                 full_batch_im = tf.concat(axis=0, values=[cropped_image, cropped_image_gan])
                 full_batch_seg = tf.concat(axis=0, values=[cropped_seg, gan_seg_batch])
@@ -859,17 +927,17 @@ class GANTrainer(object):
             with tf.name_scope('val_tower0'):
 
                 val_net_g = self.netG(val_image_batch_gan)
-                val_cropped_image = tf.slice(val_image_batch,  [0, crop_size, crop_size, 0],
-                                             [-1, target_hw[0], target_hw[1], -1])
+                val_cropped_image = tf.slice(val_image_batch,  [0, 0, crop_size, crop_size],
+                                             [-1, -1, target_hw[0], target_hw[1]])
                 if use_edges:
-                    val_cropped_seg = tf.to_int32(tf.slice(val_seg_batch, [0, crop_size, crop_size, 0],
-                                               [-1, target_hw[0], target_hw[1], -1]))
+                    val_cropped_seg = tf.to_int32(tf.slice(val_seg_batch, [0, 0, crop_size, crop_size],
+                                                           [-1, -1, target_hw[0], target_hw[1]]))
                     val_cropped_seg = tf.squeeze(tf.one_hot(indices=val_cropped_seg, depth=3, axis=3), axis=4)
                     # val_seg_vec = tf.saturate_cast(tf.reshape(val_cropped_seg, [-1]), tf.uint8)
                     # val_seg_one_hot = utils.one_hot(val_seg_vec, 3)
                     # val_cropped_seg = tf.reshape(val_seg_one_hot, [-1, target_hw[0], target_hw[1], 3])
-                    val_cropped_seg_gan = tf.to_int32(tf.slice(val_seg_batch_gan, [0, crop_size, crop_size, 0],
-                                               [-1, target_hw[0], target_hw[1], -1]))
+                    val_cropped_seg_gan = tf.to_int32(tf.slice(val_seg_batch_gan, [0, 0, crop_size, crop_size],
+                                                               [-1, -1,  target_hw[0], target_hw[1]]))
                     val_cropped_seg_gan = tf.squeeze(tf.one_hot(indices=val_cropped_seg_gan, depth=3, axis=3), axis=4)
                     # val_seg_vec_gan = tf.saturate_cast(tf.reshape(val_cropped_seg_gan, [-1]), tf.uint8)
                     # val_seg_one_hot_gan = utils.one_hot(val_seg_vec_gan, 3)
@@ -877,12 +945,12 @@ class GANTrainer(object):
 
 
                 else:
-                    val_cropped_seg = tf.to_float(tf.equal(tf.slice(val_seg_batch, [0, crop_size, crop_size, 0],
-                                                                    [-1, target_hw[0], target_hw[1], -1]),
+                    val_cropped_seg = tf.to_float(tf.equal(tf.slice(val_seg_batch, [0, 0, crop_size, crop_size,],
+                                                                    [-1, -1, target_hw[0], target_hw[1]]),
                                                            tf.constant(1.)))
 
-                val_cropped_image_gan = tf.slice(val_image_batch_gan,  [0, crop_size, crop_size, 0],
-                                                 [-1, target_hw[0], target_hw[1], -1])
+                val_cropped_image_gan = tf.slice(val_image_batch_gan,  [0, 0, crop_size, crop_size],
+                                                 [-1, -1, target_hw[0], target_hw[1]])
 
                 with tf.variable_scope('net_g', reuse=True):
                     val_gan_seg_batch, _ = val_net_g.build(True, reuse=True, use_edges=use_edges)
@@ -1053,7 +1121,7 @@ class GANTrainer(object):
                     if (not i % save_checkpoint_interval) or (i == max_itr-1)  or v_dice>0.9:
                         save_path = saver.save(sess, os.path.join(save_dir, "model_%d.ckpt") % i)
                         print("Model saved in file: %s" % save_path)
-                    if not i % plot_examples_interval :#or (i < plot_examples_interval and not i % (d_steps+g_steps)):
+                    if not i % plot_examples_interval: # or (i < plot_examples_interval and not i % (d_steps+g_steps)):
                         fetch = sess.run(val_merged_image_summaries)
                         val_writer.add_summary(fetch, i)
                         val_writer.flush()
@@ -1074,9 +1142,9 @@ class GANTrainer(object):
         with tf.variable_scope('net_g'):
             gan_seg_batch, crop_size = net_g.build(False, use_edges)
         target_hw = gan_seg_batch.get_shape().as_list()[1:3]
-        cropped_image = tf.slice(test_image_batch_gan, [0, crop_size, crop_size, 0],
-                                 [-1, target_hw[0], target_hw[1], -1])
-        cropped_seg = tf.slice(test_seg_batch_gan, [0, crop_size, crop_size, 0], [-1, target_hw[0], target_hw[1], -1])
+        cropped_image = tf.slice(test_image_batch_gan, [0, 0, crop_size, crop_size],
+                                 [-1, -1, target_hw[0], target_hw[1]])
+        cropped_seg = tf.slice(test_seg_batch_gan, [0, 0, crop_size, crop_size], [-1, -1, target_hw[0], target_hw[1]])
         eps = tf.constant(np.finfo(np.float32).eps)
         test_hard_seg = tf.round(gan_seg_batch)
         test_intersection = tf.multiply(cropped_seg, test_hard_seg)

@@ -1,5 +1,7 @@
-__author__ = 'assafarbelle'
 import tensorflow as tf
+
+__author__ = 'assafarbelle'
+
 
 def conv(in_tensor,
          name,
@@ -11,32 +13,31 @@ def conv(in_tensor,
          kernel_initializer=None,
          biase_initializer=None,
          padding='VALID',
+         data_format='NHWC'
          ):
 
-
-    with tf.variable_scope(name) as scope:
-
-        in_shape = in_tensor.get_shape().as_list()[-1]
+    with tf.variable_scope(name):
+        channel = 1 if data_format == 'NCHW' else 3
+        in_shape = in_tensor.get_shape().as_list()[channel]
         kernel_shape = [kx, ky, in_shape, kout]
         if not stride:
             stride = [1, 1, 1, 1]
-        elif isinstance(stride,int):
-            stride = [1,stride,stride,1]
-        elif isinstance(stride,list) and len(stride)==2:
-            stride = [1]+stride+[1]
-
-
+        elif isinstance(stride, int):
+            stride = [1, stride, stride, 1]
+        elif isinstance(stride, list) and len(stride) == 2:
+            stride = [1] + stride + [1]
 
         kernel = tf.get_variable('weights', shape=kernel_shape, initializer=kernel_initializer)
-
+        conv = tf.nn.conv2d(in_tensor, kernel, strides=stride, padding=padding, data_format=data_format)
         if biased:
             b = tf.get_variable('bias', kout, initializer=biase_initializer)
-            out = tf.add(tf.nn.conv2d(in_tensor, kernel, strides=stride, padding=padding), b, name=name)
+            out = tf.add(conv, b, name=name)
         else:
-            out = tf.nn.conv2d(in_tensor, kernel, strides=stride, padding=padding, name=name)
+            out = conv
             b = None
 
     return out, kernel, b
+
 
 def conv2d_transpose(in_tensor,
                      name,
@@ -49,58 +50,55 @@ def conv2d_transpose(in_tensor,
                      kernel_initializer=None,
                      biase_initializer=None,
                      padding='VALID',
+                     data_format='NHWC'
                      ):
 
-
-    with tf.variable_scope(name) as scope:
-
-        in_shape = in_tensor.get_shape().as_list()[-1]
-        kernel_shape = [kx, ky, kout,in_shape]
+    with tf.variable_scope(name):
+        channel = 1 if data_format == 'NCHW' else 3
+        in_shape = in_tensor.get_shape().as_list()[channel]
+        kernel_shape = [kx, ky, kout, in_shape]
         if not stride:
             stride = [1, 1, 1, 1]
-        elif isinstance(stride,int):
-            stride = [1,stride,stride,1]
-        elif isinstance(stride,list) and len(stride)==2:
-            stride = [1]+stride+[1]
-
-
+        elif isinstance(stride, int):
+            stride = [1, stride, stride, 1]
+        elif isinstance(stride, list) and len(stride) == 2:
+            stride = [1] + stride + [1]
 
         kernel = tf.get_variable('weights', shape=kernel_shape, initializer=kernel_initializer)
-
+        conv_t = tf.nn.conv2d_transpose(in_tensor, kernel, output_shape=outshape, strides=stride, padding=padding,
+                                        data_format=data_format)
         if biased:
             b = tf.get_variable('bias', kout, initializer=biase_initializer)
-            out = tf.add(tf.nn.conv2d_transpose(in_tensor, kernel, output_shape=outshape, strides=stride, padding=padding), b, name=name)
+            out = tf.add(conv_t, b, name=name)
         else:
-            out = tf.nn.conv2d(in_tensor, kernel, strides=stride, padding=padding, name=name)
+            out = conv_t
             b = None
 
     return out, kernel, b
 
 
-def fc(in_tensor,
-         name,
-         kout,
-         biased=True,
-         weights_initializer=None,
-         biase_initializer=None,
-         ):
+def fc(in_tensor, name, kout,
+       biased=True,
+       weights_initializer=None,
+       biase_initializer=None,
+       ):
 
     in_shape = in_tensor.get_shape().as_list()
-    if len(in_shape)>2:
-        in_tensor = tf.reshape(in_tensor,[in_shape[0], -1])
+    if len(in_shape) > 2:
+        in_tensor = tf.reshape(in_tensor, [in_shape[0], -1])
 
     in_shape = in_tensor.get_shape().as_list()[1]
 
-    with tf.variable_scope(name) as scope:
+    with tf.variable_scope(name):
         weights_shape = [in_shape, kout]
 
         weights = tf.get_variable('weights', weights_shape, initializer=weights_initializer)
-
+        matmul = tf.matmul(in_tensor, weights, name=name)
         if biased:
             b = tf.get_variable('bias', kout, initializer=biase_initializer)
-            out = tf.add(tf.matmul(in_tensor, weights), b, name=name)
+            out = tf.add(matmul, b, name=name)
         else:
-            out = tf.matmul(in_tensor, weights, name=name)
+            out = matmul
             b = None
 
     return out, weights, b
@@ -108,19 +106,19 @@ def fc(in_tensor,
 
 def leaky_relu(in_tensor, name, alpha=0.1):
 
-    return tf.maximum(in_tensor,tf.multiply(tf.constant(alpha),in_tensor),name=name)
+    return tf.maximum(in_tensor, tf.multiply(tf.constant(alpha), in_tensor), name=name)
 
 
-def max_pool(in_tensor, name, ksize=None, strides=None, padding='VALID'):
+def max_pool(in_tensor, name, ksize=None, strides=None, padding='VALID', data_format='NHWC'):
     if not ksize:
         ksize = [1, 2, 2, 1]
     if not strides:
         strides = [1, 2, 2, 1]
 
-    return tf.nn.max_pool(in_tensor, ksize, strides, padding, name=name)
+    return tf.nn.max_pool(in_tensor, ksize, strides, padding, name=name, data_format=data_format)
 
 
-def batch_norm(in_tensor, phase_train, name, reuse=None):
+def batch_norm(in_tensor, phase_train, name, reuse=None, data_format='NHWC', center=True, scale=True):
     """
     Batch normalization on convolutional maps.
     Ref.: http://stackoverflow.com/questions/33949786/how-could-i-use-batch-normalization-in-tensorflow
@@ -132,8 +130,8 @@ def batch_norm(in_tensor, phase_train, name, reuse=None):
     Return:
         normed:      batch-normalized maps
     """
-    with tf.variable_scope(name) as scope:
-       return tf.contrib.layers.batch_norm(in_tensor, is_training=phase_train, scope=scope, reuse=reuse)
-
-
-#
+    axis = -1 if data_format == 'NHWC' else 1
+    with tf.variable_scope(name):
+        # return tf.contrib.layers.batch_norm(in_tensor, is_training=phase_train, scope=scope, reuse=reuse)
+        return tf.layers.batch_normalization(in_tensor, axis=axis, center=center, scale=scale, training=phase_train,
+                                             reuse=reuse, fused=True)

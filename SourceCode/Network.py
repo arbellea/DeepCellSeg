@@ -1,6 +1,8 @@
 import Layers
 import tensorflow as tf
-from ConvLSTM.BasicConvLSTMCell import BasicConvLSTMCell
+# from ConvLSTM.BasicConvLSTMCell import BasicConvLSTMCell
+
+DEFAULT_DATA_FORMAT = "NCHW"
 
 
 def layer(op):
@@ -14,11 +16,12 @@ def layer(op):
 
 
 class Network(object):
+    data_format = DEFAULT_DATA_FORMAT
 
     def __init__(self):
         self.layers = {}
         self.weights = {}
-
+        self.channel_first = True if self.data_format == 'NCHW' else False
     @layer
     def conv(self, name,
              in_tensor,
@@ -41,6 +44,7 @@ class Network(object):
                                 kernel_initializer,
                                 biase_initializer,
                                 padding,
+                                data_format=self.data_format,
                                 )
         self.weights.update({w.op.name: w})
         if biased:
@@ -71,6 +75,7 @@ class Network(object):
                                             kernel_initializer,
                                             biase_initializer,
                                             padding,
+                                            data_format=self.data_format,
                                             )
         self.weights.update({w.op.name: w})
         if biased:
@@ -98,12 +103,12 @@ class Network(object):
 
     @layer
     def max_pool(self, name, in_tensor, ksize=None, strides=None, padding='VALID'):
-        return Layers.max_pool(in_tensor, name, ksize, strides, padding)
+        return Layers.max_pool(in_tensor, name, ksize, strides, padding, data_format=self.data_format,)
 
     @layer
     def batch_norm(self, name, in_tensor, phase_train, reuse=None):
 
-        return Layers.batch_norm(in_tensor, phase_train, name, reuse)
+        return Layers.batch_norm(in_tensor, phase_train, name, reuse, data_format=self.data_format)
 
     @layer
     def concat(self, name, in_tensor_list, dim=3):
