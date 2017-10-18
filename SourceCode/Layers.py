@@ -108,7 +108,7 @@ def fc(in_tensor,
 
 def leaky_relu(in_tensor, name, alpha=0.1):
 
-    return tf.maximum(in_tensor,tf.mul(tf.constant(alpha),in_tensor),name=name)
+    return tf.maximum(in_tensor,tf.multiply(tf.constant(alpha),in_tensor),name=name)
 
 
 def max_pool(in_tensor, name, ksize=None, strides=None, padding='VALID'):

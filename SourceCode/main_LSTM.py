@@ -675,35 +675,59 @@ class VGGNet(Network):
 
     def build(self, phase_train, reuse=None):
 
-        def conv_bn_relu(name, in_tensor, kxy, kout, stride=(1, 1, 1, 1)):
-            conv = self.conv('conv_'+name, in_tensor, kxy, kxy, kout, stride, biased=True)
-            bn = self.batch_norm('bn_'+name, conv, phase_train, reuse)
-            relu = self.leaky_relu('relu' + name, bn)
-            return relu
-        in_concat = self.concat('concat_input',[self.image_batch,self.seg_batch], dim=3)
-        conv1 = conv_bn_relu('1', in_concat, 3, 64)
-        conv2 = conv_bn_relu('2', conv1, 3, 64)
-        pool2 = self.max_pool('pool_2', conv2, [1, 2, 2, 1], [1, 2, 2, 1])
+        def conv_bn_relu(name):
+            pass
 
-        conv3 = conv_bn_relu('3', pool2, 3, 128)
-        conv4 = conv_bn_relu('4', conv3, 3, 128)
-        pool4 = self.max_pool('pool_4', conv4, [1, 2, 2, 1], [1, 2, 2, 1])
+        def rib(name, left, right, center, kxy, kout, stride=None):
+            # Left
 
-        conv5 = conv_bn_relu('5', pool4, 3, 256)
-        conv6 = conv_bn_relu('6', conv5, 3, 256)
-        conv7 = conv_bn_relu('7', conv6, 3, 256)
-        pool7 = self.max_pool('pool_7', conv7, [1, 2, 2, 1], [1, 2, 2, 1])
+            conv_left = self.conv('left_' + name, left, kxy, kxy, kout, stride, biased=False)
+            bn_left = self.batch_norm('bn_left_' + name, conv_left, phase_train, reuse)
+            relu_left = self.leaky_relu('relu_left_' + name, bn_left)
+            out_left = tf.nn.max_pool(relu_left, [1, 2, 2, 1], [1, 2, 2, 1], 'VALID')
 
-        conv8 = conv_bn_relu('8', pool7, 3, 256)
-        conv9 = conv_bn_relu('9', conv8, 3, 256)
-        conv10 = conv_bn_relu('10', conv9, 3, 256)
-        pool10 = self.max_pool('pool_10', conv10, [1, 2, 2, 1], [1, 2, 2, 1])
+            # Right
 
+            conv_right = self.conv('right_' + name, right, kxy, kxy, kout, stride, biased=False)
+            bn_right = self.batch_norm('bn_right_' + name, conv_right, phase_train, reuse)
+            relu_right = self.leaky_relu('relu_right_' + name, bn_right)
+            out_right = tf.nn.max_pool(relu_right, [1, 2, 2, 1], [1, 2, 2, 1], 'VALID')
+            # Center
 
+            conv_center = self.conv('center' + name, center, kxy, kxy, kout / 2, stride, biased=False)
+            bn_center = self.batch_norm('bn_center_' + name, conv_center, phase_train, reuse)
+            relu_center = self.leaky_relu('relu_center_' + name, bn_center)
+            pool_center = tf.nn.max_pool(relu_center, [1, 2, 2, 1], [1, 2, 2, 1], 'VALID')
+            out_center = self.concat('center_out_' + name, [out_left, out_right, pool_center], dim=3)
 
-        fc1 = self.fc('fc1', pool10, 4096, biased=False)
+            return out_left, out_right, out_center
+
+        center0 = self.concat('center0', [self.image_batch, self.seg_batch], dim=3)
+
+        # Layer 1
+        k1 = 3
+        k1out = 32
+        left1, right1, center1 = rib('rib1', self.image_batch, self.seg_batch, center0, k1, k1out)
+
+        # Layer 2
+        k2 = 3
+        k2out = 64
+        left2, right2, center2 = rib('rib2', left1, right1, center1, k2, k2out)
+
+        # Layer 3
+        k3 = 3
+        k3out = 128
+        left3, right3, center3 = rib('rib3', left2, right2, center2, k3, k3out)
+
+        # Concat
+
+        concat3 = self.concat('concat_out', [left3, right3, center3])
+
+        # FC 1
+
+        fc1 = self.fc('fc1', concat3, 64, biased=False)
         relu_fc1 = self.leaky_relu('relu_fc1', fc1)
-        fc2 = self.fc('fc2', relu_fc1, 4096, biased=False)
+        fc2 = self.fc('fc2', relu_fc1, 64, biased=False)
         relu_fc2 = self.leaky_relu('relu_fc2', fc2)
         fc_out = self.fc('fc_out', relu_fc2, 1, biased=False)
         out = self.sigmoid('out', fc_out)
@@ -715,7 +739,7 @@ class GANTrainer(object):
 
 
     def __init__(self, train_filenames, val_filenames, test_filenames, summaries_dir, num_examples=None, Unet=False,
-                 RibD=True, crop_size=(128, 128)):
+                 crop_size=(128, 128)):
 
         self.train_filenames = train_filenames if isinstance(train_filenames, list) else [train_filenames]
         self.val_filenames = val_filenames if isinstance(val_filenames, list) else [val_filenames]
@@ -761,11 +785,7 @@ class GANTrainer(object):
         if Unet:
             self.netG = SegUNetG3
         else:
-            self.netG = SegNetG
-        if RibD:
-            self.netD = RibSegNet2
-        else:
-            self.netD = VGGNet
+            self.netG = SegNetG2
         self.t = tf.placeholder(tf.int64, (), 'iteration')
 
 
@@ -822,7 +842,7 @@ class GANTrainer(object):
                 full_batch_seg = tf.concat(axis=0, values=[cropped_seg, gan_seg_batch])
                 full_batch_label = tf.concat(axis=0, values=[tf.ones([batch_size, 1]), tf.zeros([batch_size, 1])])
 
-                net_d = self.netD(full_batch_im, full_batch_seg)
+                net_d = RibSegNet2(full_batch_im, full_batch_seg)
                 with tf.variable_scope('net_d'):
                     net_d.build(True)
                 loss_d = tf.nn.sigmoid_cross_entropy_with_logits(logits=net_d.layers['fc_out'], labels=full_batch_label)
@@ -889,7 +909,7 @@ class GANTrainer(object):
                 val_full_batch_im = tf.concat(axis=0, values=[val_cropped_image, val_cropped_image_gan])
                 val_full_batch_seg = tf.concat(axis=0, values=[val_cropped_seg, val_gan_seg_batch])
                 val_full_batch_label = tf.concat(axis=0, values=[tf.ones([batch_size, 1]), tf.zeros([batch_size, 1])])
-                val_net_d = self.netD(val_full_batch_im, val_full_batch_seg)
+                val_net_d = RibSegNet2(val_full_batch_im, val_full_batch_seg)
                 with tf.variable_scope('net_d', reuse=True):
                     val_net_d.build(phase_train=True)
 
@@ -1180,7 +1200,6 @@ if __name__ == "__main__":
                         help="Number of steps for Generator and Discriminator. "
                              "ex. -s 20,30 20 for Generator and 30 for Discriminator")
     parser.add_argument('-a', '--adversarial_ascent', type=int, default=0, help="Coefficiant for adversarial ascent")
-    parser.add_argument('--rib_disc', action="store_false", help="Use RibCage Architecture for discriminator")
 
     args = parser.parse_args()
 
@@ -1245,7 +1264,7 @@ if __name__ == "__main__":
         sys.stdout = f
     print("Start")
     trainer = GANTrainer(train_filename, val_filename, test_filename, summaries_dir_name, num_examples=example_num,
-                         Unet=Unet, RibD=args.rib_disc, crop_size=crop_size)
+                         Unet=Unet, crop_size=crop_size)
     success_flag = False
     if not test_only:
         print("Build Trainer")
@@ -1256,7 +1275,7 @@ if __name__ == "__main__":
         success_flag = trainer.train(lr_g=learning_rate, lr_d=learning_rate, g_steps=gsteps, d_steps=dsteps,
                                      max_itr=max_iter,
                                      summaries=True, validation_interval=100,
-                                     save_checkpoint_interval=5000, plot_examples_interval=100,
+                                     save_checkpoint_interval=1000, plot_examples_interval=100,
                                      use_crossentropy=use_crossentropy_flag)
     if success_flag or test_only:
         print("Writing Output")

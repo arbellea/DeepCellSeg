@@ -94,7 +94,7 @@ class Network(object):
 
     @layer
     def concat(self, name, in_tensor_list, dim=3):
-        return tf.concat(dim, in_tensor_list, name)
+        return tf.concat(axis=dim, values=in_tensor_list, name=name)
 
     @layer
     def sigmoid(self, name, in_tensor):
@@ -117,7 +117,7 @@ class SegNet(object):
                                    stride=1,
                                    biased=True,
                                    kernel_initializer=tf.contrib.layers.xavier_initializer_conv2d(),
-                                   biase_initializer=tf.zeros_initializer,
+                                   biase_initializer=tf.zeros_initializer(),
                                    padding='VALID',
                                    )
 
@@ -134,7 +134,7 @@ class SegNet(object):
                                    stride=1,
                                    biased=True,
                                    kernel_initializer=tf.contrib.layers.xavier_initializer_conv2d(),
-                                   biase_initializer=tf.zeros_initializer,
+                                   biase_initializer=tf.zeros_initializer(),
                                    padding='VALID',
                                    )
 
@@ -151,7 +151,7 @@ class SegNet(object):
                                    stride=1,
                                    biased=True,
                                    kernel_initializer=tf.contrib.layers.xavier_initializer_conv2d(),
-                                   biase_initializer=tf.zeros_initializer,
+                                   biase_initializer=tf.zeros_initializer(),
                                    padding='VALID',
                                    )
 
@@ -168,7 +168,7 @@ class SegNet(object):
                                    stride=1,
                                    biased=True,
                                    kernel_initializer=tf.contrib.layers.xavier_initializer_conv2d(),
-                                   biase_initializer=tf.zeros_initializer,
+                                   biase_initializer=tf.zeros_initializer(),
                                    padding='VALID',
                                    )
 
@@ -185,7 +185,7 @@ class SegNet(object):
                                    stride=1,
                                    biased=True,
                                    kernel_initializer=tf.contrib.layers.xavier_initializer_conv2d(),
-                                   biase_initializer=tf.zeros_initializer,
+                                   biase_initializer=tf.zeros_initializer(),
                                    padding='VALID',
                                    )
 
@@ -202,7 +202,7 @@ class SegNet(object):
                                    stride=1,
                                    biased=True,
                                    kernel_initializer=tf.contrib.layers.xavier_initializer_conv2d(),
-                                   biase_initializer=tf.zeros_initializer,
+                                   biase_initializer=tf.zeros_initializer(),
                                    padding='VALID',
                                    )
 
@@ -219,7 +219,7 @@ class SegNet(object):
                                    stride=1,
                                    biased=True,
                                    kernel_initializer=tf.contrib.layers.xavier_initializer_conv2d(),
-                                   biase_initializer=tf.zeros_initializer,
+                                   biase_initializer=tf.zeros_initializer(),
                                    padding='VALID',
                                    )
 
@@ -285,7 +285,7 @@ class RibSegNet(Network):
         relu_fc2 = self.leaky_relu('relu_fc2', fc2)
         fcout = self.fc('fc_out', relu_fc2, 1, biased=False)
         out = self.sigmoid('out', fcout)
-        self.layers['out'] = tf.sub(tf.constant(1.), out)
+        self.layers['out'] = tf.subtract(tf.constant(1.), out)
         return 1-out
 
 
@@ -330,32 +330,32 @@ class SegTrainer(object):
         k1 = net.kernels['conv1/weights']
         k1pad = tf.pad(k1, [[0, 0], [0, 0], [0, 0], [0, 4]])
         self.k1_im = utils.put_kernels_on_grid(k1pad, (6, 6), 2)
-        self.train_kernel_summaries = tf.image_summary('kernel1', self.k1_im, max_images=1)
+        self.train_kernel_summaries = tf.summary.image('kernel1', self.k1_im, max_images=1)
         update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
         updates = tf.group(*update_ops) if update_ops else tf.no_op()
         with tf.control_dependencies([updates]):
-            pixel_loss = tf.nn.sigmoid_cross_entropy_with_logits(net.layers['conv7'], train_seg_batch)
+            pixel_loss = tf.nn.sigmoid_cross_entropy_with_logits(logits=net.layers['conv7'], labels=train_seg_batch)
         image_loss = tf.reduce_mean(pixel_loss, [1, 2])
         self.batch_loss = tf.reduce_mean(image_loss)
-        self.loss_summary = tf.scalar_summary('loss', self.batch_loss, name='loss_summary')
+        self.loss_summary = tf.summary.scalar('loss', self.batch_loss, name='loss_summary')
 
-        self.train_image_summaries = [tf.image_summary('input image', train_image_batch, max_images=1),
-                                      tf.image_summary('output image', net.layers['conv7'], max_images=1)]
+        self.train_image_summaries = [tf.summary.image('input image', train_image_batch, max_images=1),
+                                      tf.summary.image('output image', net.layers['conv7'], max_images=1)]
 
         with tf.control_dependencies([updates]):
-            val_pixel_loss = tf.nn.sigmoid_cross_entropy_with_logits(val_net.layers['conv7'], val_seg_batch)
+            val_pixel_loss = tf.nn.sigmoid_cross_entropy_with_logits(logits=val_net.layers['conv7'], labels=val_seg_batch)
         val_image_loss = tf.reduce_mean(val_pixel_loss, [1, 2])
         self.val_batch_loss = tf.reduce_mean(val_image_loss)
-        self.val_loss_summary = tf.scalar_summary('loss', self.val_batch_loss, name='val_loss_summary')
-        self.val_image_summaries = [tf.image_summary('input image', val_image_batch, max_images=1),
-                                    tf.image_summary('output image', val_net.layers['conv7'], max_images=1)]
+        self.val_loss_summary = tf.summary.scalar('loss', self.val_batch_loss, name='val_loss_summary')
+        self.val_image_summaries = [tf.summary.image('input image', val_image_batch, max_images=1),
+                                    tf.summary.image('output image', val_net.layers['conv7'], max_images=1)]
 
         opt = tf.train.RMSPropOptimizer(self.LR)
         grads_vars = opt.compute_gradients(self.batch_loss)
 
         for g, v in grads_vars:
-                self.hist_summaries.append(tf.histogram_summary(v.op.name + '/value', v, name=v.op.name + '_summary'))
-                self.hist_summaries.append(tf.histogram_summary(v.op.name + '/grad',
+                self.hist_summaries.append(tf.summary.histogram(v.op.name + '/value', v, name=v.op.name + '_summary'))
+                self.hist_summaries.append(tf.summary.histogram(v.op.name + '/grad',
                                                                 g, name=v.op.name + '_grad_summary'))
 
         self.train_step = opt.apply_gradients(grads_vars)
@@ -366,19 +366,19 @@ class SegTrainer(object):
         if summaries:
 
             loss_summary = self.loss_summary
-            train_merged_summaries = tf.merge_summary(self.hist_summaries+[loss_summary, self.train_kernel_summaries] +
+            train_merged_summaries = tf.summary.merge(self.hist_summaries+[loss_summary, self.train_kernel_summaries] +
                                                       self.train_image_summaries)
             val_loss_summary = self.val_loss_summary
-            val_merged_summaries = tf.merge_summary([val_loss_summary] + self.val_image_summaries)
-            train_writer = tf.train.SummaryWriter(os.path.join(self.summaries_dir, 'train'))
-            val_writer = tf.train.SummaryWriter(os.path.join(self.summaries_dir, 'val'))
+            val_merged_summaries = tf.summary.merge([val_loss_summary] + self.val_image_summaries)
+            train_writer = tf.summary.FileWriter(os.path.join(self.summaries_dir, 'train'))
+            val_writer = tf.summary.FileWriter(os.path.join(self.summaries_dir, 'val'))
         else:
             train_merged_summaries = tf.no_op()
             val_merged_summaries = tf.no_op()
 
-        saver = tf.train.Saver(tf.all_variables())
+        saver = tf.train.Saver(tf.global_variables())
         with tf.Session() as sess:
-            sess.run(tf.initialize_all_variables())
+            sess.run(tf.global_variables_initializer())
             tf.train.start_queue_runners(sess)
             for i in range(max_itr):
                 _, loss, summaries_string = sess.run([self.train_step, self.batch_loss, train_merged_summaries],
@@ -442,28 +442,28 @@ class SegTrainer2(object):
         k1 = net.kernels['conv1/weights']
         k1pad = tf.pad(k1, [[0, 0], [0, 0], [0, 0], [0, 4]])
         self.k1_im = utils.put_kernels_on_grid(k1pad, (6, 6), 2)
-        self.train_kernel_summaries = tf.image_summary('kernel1', self.k1_im, max_images=1)
+        self.train_kernel_summaries = tf.summary.image('kernel1', self.k1_im, max_images=1)
         update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
         updates = tf.group(*update_ops) if update_ops else tf.no_op()
         with tf.control_dependencies([updates]):
             self.batch_loss = tf.squeeze(utils.my_clustering_loss(net.layers['out'], net.layers['conv7']))
 
-        self.loss_summary = tf.scalar_summary('loss', self.batch_loss, name='loss_summary')
+        self.loss_summary = tf.summary.scalar('loss', self.batch_loss, name='loss_summary')
 
-        self.train_image_summaries = [tf.image_summary('input image', train_image_batch, max_images=1),
-                                      tf.image_summary('output image', net.layers['conv7'], max_images=1)]
+        self.train_image_summaries = [tf.summary.image('input image', train_image_batch, max_images=1),
+                                      tf.summary.image('output image', net.layers['conv7'], max_images=1)]
 
         self.val_batch_loss = tf.squeeze(utils.my_clustering_loss(val_net.layers['out'], val_net.layers['conv7']))
-        self.val_loss_summary = tf.scalar_summary('loss', self.val_batch_loss, name='val_loss_summary')
-        self.val_image_summaries = [tf.image_summary('input image', val_image_batch, max_images=1),
-                                    tf.image_summary('output image', val_net.layers['conv7'], max_images=1)]
+        self.val_loss_summary = tf.summary.scalar('loss', self.val_batch_loss, name='val_loss_summary')
+        self.val_image_summaries = [tf.summary.image('input image', val_image_batch, max_images=1),
+                                    tf.summary.image('output image', val_net.layers['conv7'], max_images=1)]
 
         opt = tf.train.RMSPropOptimizer(self.LR)
         grads_vars = opt.compute_gradients(self.batch_loss)
 
         for g, v in grads_vars:
-                self.hist_summaries.append(tf.histogram_summary(v.op.name + '/value', v, name=v.op.name + '_summary'))
-                self.hist_summaries.append(tf.histogram_summary(v.op.name + '/grad', g,
+                self.hist_summaries.append(tf.summary.histogram(v.op.name + '/value', v, name=v.op.name + '_summary'))
+                self.hist_summaries.append(tf.summary.histogram(v.op.name + '/grad', g,
                                                                 name=v.op.name + '_grad_summary'))
 
         self.train_step = opt.apply_gradients(grads_vars)
@@ -474,19 +474,19 @@ class SegTrainer2(object):
         if summaries:
 
             loss_summary = self.loss_summary
-            train_merged_summaries = tf.merge_summary(self.hist_summaries+[loss_summary, self.train_kernel_summaries] +
+            train_merged_summaries = tf.summary.merge(self.hist_summaries+[loss_summary, self.train_kernel_summaries] +
                                                       self.train_image_summaries)
             val_loss_summary = self.val_loss_summary
-            val_merged_summaries = tf.merge_summary([val_loss_summary] + self.val_image_summaries)
-            train_writer = tf.train.SummaryWriter(os.path.join(self.summaries_dir, 'train'))
-            val_writer = tf.train.SummaryWriter(os.path.join(self.summaries_dir, 'val'))
+            val_merged_summaries = tf.summary.merge([val_loss_summary] + self.val_image_summaries)
+            train_writer = tf.summary.FileWriter(os.path.join(self.summaries_dir, 'train'))
+            val_writer = tf.summary.FileWriter(os.path.join(self.summaries_dir, 'val'))
         else:
             train_merged_summaries = tf.no_op()
             val_merged_summaries = tf.no_op()
 
-        saver = tf.train.Saver(tf.all_variables())
+        saver = tf.train.Saver(tf.global_variables())
         with tf.Session() as sess:
-            sess.run(tf.initialize_all_variables())
+            sess.run(tf.global_variables_initializer())
             tf.train.start_queue_runners(sess)
             for i in range(max_itr):
                 _, loss, summaries_string = sess.run([self.train_step, self.batch_loss, train_merged_summaries],
@@ -550,10 +550,10 @@ class RibSegTrainer(object):
                     self.batch_loss = tf.reduce_mean(net.layers['out'])
                 tf.get_variable_scope().reuse_variables()
                 const = tf.constant(1.)
-                loss_l2 = tf.add_n([tf.abs(tf.sub(tf.nn.l2_loss(v), const)) for v in net.weights.values()])
+                loss_l2 = tf.add_n([tf.abs(tf.subtract(tf.nn.l2_loss(v), const)) for v in net.weights.values()])
                 loss_l1 = tf.add_n([tf.reduce_sum(tf.abs(v)) for v in net.weights.values()])
                 self.total_loss = tf.add_n([self.batch_loss,
-                                            tf.mul(loss_l2, self.L2_coeff), tf.div(self.L1_coeff, loss_l1)])
+                                            tf.multiply(loss_l2, self.L2_coeff), tf.div(self.L1_coeff, loss_l1)])
             with tf.name_scope('val_tower0'):
                 val_net = RibSegNet(val_image_batch, val_seg_batch)
                 val_net.build(False)
@@ -562,9 +562,9 @@ class RibSegTrainer(object):
         opt = tf.train.RMSPropOptimizer(self.LR)
         grads_vars = opt.compute_gradients(self.total_loss)
 
-        self.objective_summary = tf.scalar_summary('objective', self.total_loss, name='objective_summary')
-        self.loss_summary = tf.scalar_summary('loss', self.batch_loss, name='loss_summary')
-        self.val_loss_summary = tf.scalar_summary('loss', self.val_batch_loss, name='loss_summary')
+        self.objective_summary = tf.summary.scalar('objective', self.total_loss, name='objective_summary')
+        self.loss_summary = tf.summary.scalar('loss', self.batch_loss, name='loss_summary')
+        self.val_loss_summary = tf.summary.scalar('loss', self.val_batch_loss, name='loss_summary')
         conv1_l = utils.put_kernels_on_grid(tf.pad(net.weights['left_rib1/weights'],
                                                    [[0, 0], [0, 0], [0, 0], [0, 1]]), (3, 3), pad=1)
         conv1_r = utils.put_kernels_on_grid(tf.pad(net.weights['right_rib1/weights'],
@@ -572,13 +572,13 @@ class RibSegTrainer(object):
         c1_w = net.weights['centerrib1/weights']
         c1_wp = tf.pad(c1_w, [[0, 0], [0, 0], [0, 1], [0, 0]])
         conv1_c = utils.put_kernels_on_grid(c1_wp, (2, 2), pad=1)
-        self.image_summaries.append(tf.image_summary('left_1_weights', conv1_l, max_images=1))
-        self.image_summaries.append(tf.image_summary('rigtht_1_weights', conv1_r, max_images=1))
-        self.image_summaries.append(tf.image_summary('center_1_weights', conv1_c, max_images=1))
+        self.image_summaries.append(tf.summary.image('left_1_weights', conv1_l, max_images=1))
+        self.image_summaries.append(tf.summary.image('rigtht_1_weights', conv1_r, max_images=1))
+        self.image_summaries.append(tf.summary.image('center_1_weights', conv1_c, max_images=1))
 
         for g, v in grads_vars:
-                self.hist_summaries.append(tf.histogram_summary(v.op.name + '/value', v, name=v.op.name + '_summary'))
-                self.hist_summaries.append(tf.histogram_summary(v.op.name + '/grad', g,
+                self.hist_summaries.append(tf.summary.histogram(v.op.name + '/value', v, name=v.op.name + '_summary'))
+                self.hist_summaries.append(tf.summary.histogram(v.op.name + '/grad', g,
                                                                 name=v.op.name + '_grad_summary'))
         self.train_step = opt.apply_gradients(grads_vars)
         self.net = net
@@ -589,21 +589,21 @@ class RibSegTrainer(object):
 
         if summaries:
 
-            train_merged_summaries = tf.merge_summary(self.hist_summaries+[self.objective_summary, self.loss_summary] +
+            train_merged_summaries = tf.summary.merge(self.hist_summaries+[self.objective_summary, self.loss_summary] +
                                                       self.image_summaries)
             val_merged_summaries = self.val_loss_summary
-            train_writer = tf.train.SummaryWriter(os.path.join(self.summaries_dir, 'train'),
+            train_writer = tf.summary.FileWriter(os.path.join(self.summaries_dir, 'train'),
                                                   graph=tf.get_default_graph())
-            val_writer = tf.train.SummaryWriter(os.path.join(self.summaries_dir, 'val'))
+            val_writer = tf.summary.FileWriter(os.path.join(self.summaries_dir, 'val'))
         else:
             train_merged_summaries = tf.no_op()
             val_merged_summaries = tf.no_op()
 
-        saver = tf.train.Saver(tf.all_variables())
+        saver = tf.train.Saver(tf.global_variables())
 
         with tf.Session() as sess:
 
-            sess.run(tf.initialize_all_variables())
+            sess.run(tf.global_variables_initializer())
             t = 0
             if restore:
                 chkpnt_info = tf.train.get_checkpoint_state(save_dir)
@@ -683,10 +683,10 @@ class RibSegTrainer2(object):
                     self.batch_loss = tf.reduce_mean(net.layers['out'])
                 tf.get_variable_scope().reuse_variables()
                 const = tf.constant(1.)
-                loss_l2 = tf.add_n([tf.abs(tf.sub(tf.nn.l2_loss(v), const)) for v in net.weights.values()])
+                loss_l2 = tf.add_n([tf.abs(tf.subtract(tf.nn.l2_loss(v), const)) for v in net.weights.values()])
                 loss_l1 = tf.add_n([tf.reduce_sum(tf.abs(v)) for v in net.weights.values()])
                 self.total_loss = tf.add_n([self.batch_loss,
-                                            tf.mul(loss_l2, self.L2_coeff), tf.div(self.L1_coeff, loss_l1)])
+                                            tf.multiply(loss_l2, self.L2_coeff), tf.div(self.L1_coeff, loss_l1)])
             with tf.name_scope('val_tower0'):
                 val_net = RibSegNet(val_image_batch, val_seg_batch)
                 val_net.build(False)
@@ -695,9 +695,9 @@ class RibSegTrainer2(object):
         opt = tf.train.RMSPropOptimizer(self.LR)
         grads_vars = opt.compute_gradients(self.total_loss)
 
-        self.objective_summary = tf.scalar_summary('objective', self.total_loss, name='objective_summary')
-        self.loss_summary = tf.scalar_summary('loss', self.batch_loss, name='loss_summary')
-        self.val_loss_summary = tf.scalar_summary('loss', self.val_batch_loss, name='loss_summary')
+        self.objective_summary = tf.summary.scalar('objective', self.total_loss, name='objective_summary')
+        self.loss_summary = tf.summary.scalar('loss', self.batch_loss, name='loss_summary')
+        self.val_loss_summary = tf.summary.scalar('loss', self.val_batch_loss, name='loss_summary')
         conv1_l = utils.put_kernels_on_grid(tf.pad(net.weights['left_rib1/weights'],
                                                    [[0, 0], [0, 0], [0, 0], [0, 1]]), (3, 3), pad=1)
         conv1_r = utils.put_kernels_on_grid(tf.pad(net.weights['right_rib1/weights'],
@@ -705,13 +705,13 @@ class RibSegTrainer2(object):
         c1_w = net.weights['centerrib1/weights']
         c1_wp = tf.pad(c1_w, [[0, 0], [0, 0], [0, 1], [0, 0]])
         conv1_c = utils.put_kernels_on_grid(c1_wp, (2, 2), pad=1)
-        self.image_summaries.append(tf.image_summary('left_1_weights', conv1_l, max_images=1))
-        self.image_summaries.append(tf.image_summary('rigtht_1_weights', conv1_r, max_images=1))
-        self.image_summaries.append(tf.image_summary('center_1_weights', conv1_c, max_images=1))
+        self.image_summaries.append(tf.summary.image('left_1_weights', conv1_l, max_images=1))
+        self.image_summaries.append(tf.summary.image('rigtht_1_weights', conv1_r, max_images=1))
+        self.image_summaries.append(tf.summary.image('center_1_weights', conv1_c, max_images=1))
 
         for g, v in grads_vars:
-                self.hist_summaries.append(tf.histogram_summary(v.op.name + '/value', v, name=v.op.name + '_summary'))
-                self.hist_summaries.append(tf.histogram_summary(v.op.name + '/grad', g,
+                self.hist_summaries.append(tf.summary.histogram(v.op.name + '/value', v, name=v.op.name + '_summary'))
+                self.hist_summaries.append(tf.summary.histogram(v.op.name + '/grad', g,
                                                                 name=v.op.name + '_grad_summary'))
         self.train_step = opt.apply_gradients(grads_vars)
         self.net = net
@@ -722,21 +722,21 @@ class RibSegTrainer2(object):
 
         if summaries:
 
-            train_merged_summaries = tf.merge_summary(self.hist_summaries+[self.objective_summary, self.loss_summary] +
+            train_merged_summaries = tf.summary.merge(self.hist_summaries+[self.objective_summary, self.loss_summary] +
                                                       self.image_summaries)
             val_merged_summaries = self.val_loss_summary
-            train_writer = tf.train.SummaryWriter(os.path.join(self.summaries_dir, 'train'),
+            train_writer = tf.summary.FileWriter(os.path.join(self.summaries_dir, 'train'),
                                                   graph=tf.get_default_graph())
-            val_writer = tf.train.SummaryWriter(os.path.join(self.summaries_dir, 'val'))
+            val_writer = tf.summary.FileWriter(os.path.join(self.summaries_dir, 'val'))
         else:
             train_merged_summaries = tf.no_op()
             val_merged_summaries = tf.no_op()
 
-        saver = tf.train.Saver(tf.all_variables())
+        saver = tf.train.Saver(tf.global_variables())
 
         with tf.Session() as sess:
 
-            sess.run(tf.initialize_all_variables())
+            sess.run(tf.global_variables_initializer())
             t = 0
             if restore:
                 chkpnt_info = tf.train.get_checkpoint_state(save_dir)

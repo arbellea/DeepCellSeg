@@ -126,7 +126,7 @@ class CSVSegReaderRandom(object):
         self.batch_size = batch_size
 
         image, seg, file_name = self._get_image()
-        concat = tf.concat(2, [image, seg])
+        concat = tf.concat(axis=2, values=[image, seg])
 
         concat = tf.random_crop(concat, [self.crop_size[0], self.crop_size[1], 2])
         shape = concat.get_shape()
@@ -149,7 +149,7 @@ class CSVSegReaderRandom(object):
 
 class CSVSegReaderRandom2(object):
 
-    def __init__(self, filenames, base_folder='.', image_size=(), crop_size=(256, 256), num_threads=4,
+    def __init__(self, filenames, base_folder='.', image_size=(), crop_size=(128, 128), crops_per_image=50, num_threads=4,
                  capacity=20, min_after_dequeue=10,
                  random_rotate=tf.random_uniform([], minval=0, maxval=2, dtype=tf.int32), num_examples=None):
         """
@@ -165,7 +165,7 @@ class CSVSegReaderRandom2(object):
             min_after_dequeue: the minimum example in the queue after a dequeue op. ensures good mixing
         """
         raw_filenames = []
-        seg_filenames = []
+
         for filename in filenames:
             with open(filename, 'r') as csv_file:
                 csv_reader = csv.reader(csv_file, delimiter=',', quotechar='|')
@@ -194,6 +194,7 @@ class CSVSegReaderRandom2(object):
 
         self.image_size = image_size
         self.crop_size = crop_size
+        self.crops_per_image =crops_per_image
         self.random_rotate = random_rotate
         self.batch_size = None
         self.num_threads = num_threads
@@ -228,21 +229,38 @@ class CSVSegReaderRandom2(object):
     def get_batch(self, batch_size=1):
         self.batch_size = batch_size
         image_in, seg_in, file_name, seg_filename = self._get_image()
-        concat = tf.concat(2, [image_in, seg_in])
-        cropped = tf.random_crop(concat, [self.crop_size[0], self.crop_size[1], 2])
-        shape = cropped.get_shape()
-        fliplr = tf.image.random_flip_left_right(cropped)
-        flipud = tf.image.random_flip_up_down(fliplr)
-        rot = tf.image.rot90(flipud, k=self.random_rotate)
-        rot.set_shape(shape)
-        image, seg = tf.unstack(rot, 2, 2)
-        image = tf.expand_dims(image, 2)
-        seg = tf.expand_dims(seg, 2)
-        image_batch, seg_batch, filename_batch, seg_filename_batch = tf.train.shuffle_batch([image, seg, file_name, seg_filename],
-                                                                        batch_size=self.batch_size,
-                                                                        num_threads=self.num_threads,
-                                                                        capacity=self.capacity,
-                                                                        min_after_dequeue=self.min_after_dequeue)
+        concat = tf.concat(axis=2, values=[image_in, seg_in])
+        image_list = []
+        seg_list = []
+        filename_list = []
+        seg_filename_list = []
+        for _ in range(self.crops_per_image):
+            cropped = tf.random_crop(concat, [self.crop_size[0], self.crop_size[1], 2])
+            shape = cropped.get_shape()
+            fliplr = tf.image.random_flip_left_right(cropped)
+            flipud = tf.image.random_flip_up_down(fliplr)
+            rot = tf.image.rot90(flipud, k=self.random_rotate)
+            rot.set_shape(shape)
+            image, seg = tf.unstack(rot, 2, 2)
+            image = tf.expand_dims(image, 2)
+            seg = tf.expand_dims(seg, 2)
+            image_list.append(image)
+            seg_list.append(seg)
+            filename_list.append(file_name)
+            seg_filename_list.append(seg_filename)
+        image_many = tf.stack(values=image_list, axis=0)
+        seg_many = tf.stack(values=seg_list, axis=0)
+        filename_many = tf.stack(values=filename_list, axis=0)
+        seg_filename_many = tf.stack(values=seg_filename_list, axis=0)
+
+        (image_batch, seg_batch, filename_batch,
+         seg_filename_batch) = tf.train.shuffle_batch([image_many, seg_many, filename_many, seg_filename_many],
+                                                      batch_size=self.batch_size,
+                                                      num_threads=self.num_threads,
+                                                      capacity=self.capacity,
+                                                      min_after_dequeue=self.min_after_dequeue,
+                                                      enqueue_many=True
+                                                      )
 
         return image_batch, seg_batch, filename_batch
 
@@ -276,13 +294,13 @@ class CSVSegReader2(object):
             pass
         elif isinstance(num_examples, int):
             raw_filenames = raw_filenames[:num_examples]
-            #seg_filenames = seg_filenames[:num_examples]
+            # seg_filenames = seg_filenames[:num_examples]
         elif isinstance(num_examples, list):
             raw_filenames = [f_name for n, f_name in enumerate(raw_filenames) if n in num_examples]
-            #seg_filenames = [f_name for n, f_name in enumerate(seg_filenames) if n in num_examples]
+            # seg_filenames = [f_name for n, f_name in enumerate(seg_filenames) if n in num_examples]
 
         self.raw_queue = tf.train.string_input_producer(raw_filenames, num_epochs=num_epochs, shuffle=random, seed=0)
-        #self.seg_queue = tf.train.string_input_producer(seg_filenames, num_epochs=num_epochs, shuffle=random, seed=0)
+        # self.seg_queue = tf.train.string_input_producer(seg_filenames, num_epochs=num_epochs, shuffle=random, seed=0)
 
         self.image_size = image_size
         self.batch_size = None
@@ -326,4 +344,8 @@ class CSVSegReader2(object):
                                                                          batch_size=self.batch_size,
                                                                          capacity=self.capacity,
                                                                          allow_smaller_final_batch=True)
+
+        # image_batch.set_shape([self.batch_size] + image_batch.get_shape().as_list()[1:])
+        # seg_batch.set_shape([self.batch_size] + seg_batch.get_shape().as_list()[1:])
+        # filename_batch.set_shape([self.batch_size] + filename_batch.get_shape().as_list()[1:])
         return image_batch, seg_batch, filename_batch

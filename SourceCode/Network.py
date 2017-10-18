@@ -1,5 +1,6 @@
 import Layers
 import tensorflow as tf
+from ConvLSTM.BasicConvLSTMCell import BasicConvLSTMCell
 
 
 def layer(op):
@@ -106,7 +107,7 @@ class Network(object):
 
     @layer
     def concat(self, name, in_tensor_list, dim=3):
-        return tf.concat(dim, in_tensor_list, name)
+        return tf.concat(axis=dim, values=in_tensor_list, name=name)
 
     @layer
     def sigmoid(self, name, in_tensor):

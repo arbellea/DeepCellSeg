@@ -205,16 +205,16 @@ class GANTrainer(object):
                 croped_seg = tf.slice(train_seg_batch, [0, crop_size, crop_size, 0], [-1, target_hw[0], target_hw[1], -1])
                 croped_image_gan = tf.slice(train_image_batch_gan,  [0, crop_size, crop_size, 0], [-1, target_hw[0], target_hw[1], -1])
 
-                full_batch_im = tf.concat(0,[croped_image, croped_image_gan])
-                full_batch_seg = tf.concat(0,[croped_seg, gan_seg_batch])
-                full_batch_label = tf.concat(0, [tf.ones([batch_size, 1]), tf.zeros([batch_size, 1])])
+                full_batch_im = tf.concat(axis=0,values=[croped_image, croped_image_gan])
+                full_batch_seg = tf.concat(axis=0,values=[croped_seg, gan_seg_batch])
+                full_batch_label = tf.concat(axis=0, values=[tf.ones([batch_size, 1]), tf.zeros([batch_size, 1])])
 
                 net_d = RibSegNet(full_batch_im, full_batch_seg)
                 with tf.variable_scope('net_d'):
                     net_d.build(True)
-                loss_d = tf.nn.sigmoid_cross_entropy_with_logits(net_d.layers['fc_out'], full_batch_label)
+                loss_d = tf.nn.sigmoid_cross_entropy_with_logits(logits=net_d.layers['fc_out'], labels=full_batch_label)
                 log2_const = tf.constant(0.6931)
-                loss_g = tf.div(1., tf.maximum(loss_d, 0.01)) #tf.abs(tf.sub(loss_d,log2_const)) #10*tf.exp(-loss_d)#
+                loss_g = tf.div(1., tf.maximum(loss_d, 0.01)) #tf.abs(tf.subtract(loss_d,log2_const)) #10*tf.exp(-loss_d)#
 
                 update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
                 updates = tf.group(*update_ops) if update_ops else tf.no_op()
@@ -238,20 +238,20 @@ class GANTrainer(object):
                 val_croped_seg_gan = tf.slice(val_seg_batch_gan,  [0, crop_size, crop_size, 0], [-1, target_hw[0], target_hw[1], -1])
                 with tf.variable_scope('net_g'):
                     val_gan_seg_batch, _ = val_net_g.build(False)
-                val_full_batch_im = tf.concat(0,[val_croped_image, val_croped_image_gan])
-                val_full_batch_seg = tf.concat(0,[val_croped_seg, val_gan_seg_batch])
-                val_full_batch_label = tf.concat(0, [tf.ones([batch_size, 1]), tf.zeros([batch_size, 1])])
+                val_full_batch_im = tf.concat(axis=0, values=[val_croped_image, val_croped_image_gan])
+                val_full_batch_seg = tf.concat(axis=0, values=[val_croped_seg, val_gan_seg_batch])
+                val_full_batch_label = tf.concat(axis=0, values=[tf.ones([batch_size, 1]), tf.zeros([batch_size, 1])])
                 val_net_d = RibSegNet(val_full_batch_im, val_full_batch_seg)
                 with tf.variable_scope('net_d'):
                     val_net_d.build(False)
 
-                val_loss_d = tf.nn.sigmoid_cross_entropy_with_logits(val_net_d.layers['fc_out'], val_full_batch_label)
+                val_loss_d = tf.nn.sigmoid_cross_entropy_with_logits(logits=val_net_d.layers['fc_out'], labels=val_full_batch_label)
 
-                val_loss_g = tf.abs(tf.sub(val_loss_d, log2_const))
+                val_loss_g = tf.abs(tf.subtract(val_loss_d, log2_const))
                 eps = tf.constant(np.finfo(np.float32).eps)
                 val_hard_seg = tf.round(val_gan_seg_batch)
-                val_intersection = tf.mul(val_croped_seg_gan, val_hard_seg)
-                val_union = tf.sub(tf.add(val_croped_seg_gan, val_hard_seg), val_intersection)
+                val_intersection = tf.multiply(val_croped_seg_gan, val_hard_seg)
+                val_union = tf.subtract(tf.add(val_croped_seg_gan, val_hard_seg), val_intersection)
                 val_dice = tf.reduce_mean(tf.div(tf.add(tf.reduce_sum(val_intersection, [1,2]), eps),
                                                  tf.add(tf.reduce_sum(val_union, [1,2]), eps)))
 
@@ -377,8 +377,8 @@ class GANTrainer(object):
         croped_seg = tf.slice(test_seg_batch_gan, [0, crop_size, crop_size, 0], [-1, target_hw[0], target_hw[1], -1])
         eps = tf.constant(np.finfo(np.float32).eps)
         test_hard_seg = tf.round(gan_seg_batch)
-        test_intersection = tf.mul(croped_seg, test_hard_seg)
-        test_union = tf.sub(tf.add(croped_seg, test_hard_seg), test_intersection)
+        test_intersection = tf.multiply(croped_seg, test_hard_seg)
+        test_union = tf.subtract(tf.add(croped_seg, test_hard_seg), test_intersection)
         test_dice = tf.reduce_mean(tf.div(tf.add(tf.reduce_sum(test_intersection, [1,2]), eps),
                                          tf.add(tf.reduce_sum(test_union, [1,2]), eps)))
         saver = tf.train.Saver(var_list=tf.global_variables(), allow_empty=True)
@@ -412,8 +412,8 @@ class GANTrainer(object):
         croped_seg = tf.slice(test_seg_batch_gan, [0, crop_size, crop_size, 0], [-1, target_hw[0], target_hw[1], -1])
         eps = tf.constant(np.finfo(np.float32).eps)
         test_hard_seg = tf.round(gan_seg_batch)
-        test_intersection = tf.mul(croped_seg, test_hard_seg)
-        test_union = tf.sub(tf.add(croped_seg, test_hard_seg), test_intersection)
+        test_intersection = tf.multiply(croped_seg, test_hard_seg)
+        test_union = tf.subtract(tf.add(croped_seg, test_hard_seg), test_intersection)
         test_dice = tf.reduce_mean(tf.div(tf.add(tf.reduce_sum(test_intersection, [1,2]), eps),
                                          tf.add(tf.reduce_sum(test_union, [1,2]), eps)))
         saver = tf.train.Saver(var_list=tf.global_variables(), allow_empty=True)
