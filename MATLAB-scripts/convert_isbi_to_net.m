@@ -1,41 +1,16 @@
-% Convert ISBI to Net
-% im_path_base = '/Users/assafarbelle/Documents/ISBI-Data/Training/DIC-C2DH-HeLa/01/t%03d.tif';
-% test_path_base = '/Users/assafarbelle/Documents/ISBI-Data/Challenge/DIC-C2DH-HeLa/01/t%03d.tif';
-% seg_path_base = '/Users/assafarbelle/Documents/ISBI-Data/Training/DIC-C2DH-HeLa/01_GT/SEG/man_Seg%03d.tif';
-% net_path_base = '/Users/assafarbelle/Documents/ISBI-Data/Training/DIC-C2DH-HeLa/01_GT/NET/';
-% T = [2,5,21,31,33,39,54];
-% im_path_base = '/Users/assafarbelle/Documents/ISBI-Data/Training/DIC-C2DH-HeLa/02/t%03d.tif';
-% test_path_base = '/Users/assafarbelle/Documents/ISBI-Data/Challenge/DIC-C2DH-HeLa/02/t%03d.tif';
-% seg_path_base = '/Users/assafarbelle/Documents/ISBI-Data/Training/DIC-C2DH-HeLa/02_GT/SEG/man_Seg%03d.tif';
-% net_path_base = '/Users/assafarbelle/Documents/ISBI-Data/Training/DIC-C2DH-HeLa/02_GT/NET/';
-% T = [6,7,14,27,34,38,42,61,67];
+% Convert ISBI to DeepCellSeg format
+
+data_path_base = '/Users/assafarbelle/Documents/ISBI-Data/';
+output_path_base = '~'
+data_set_name = 'Fluo-N2DH-SIM+' %Should be one of the ISBI data sets
+seq = '01' % should be one of the valid sequences: 01 or 02
+valid_segmentations = 0:64; %In ISBI training set not all segmentation frames include all the cells, this should include only frames with full segmentations
 
 
-im_path_base = '/home/arbellea/ISBI-Challenge-Data/Training/Fluo-N2DH-SIM+/01/t%03d.tif';
-test_path_base = '/home/arbellea/ISBI-Challenge-Data/Challenge/Fluo-N2DH-SIM+/01/t%03d.tif';
-seg_path_base = '/home/arbellea/ISBI-Challenge-Data/Training/Fluo-N2DH-SIM+/01_GT/SEG/man_seg%03d.tif';
-net_path_base = '/home/arbellea/ISBI-Challenge-Data/Training/Fluo-N2DH-SIM+/01_GT/NET/';
-T = 0:64;
-
-% 
-% im_path_base = '/home/arbellea/ISBI-Challenge-Data/Training/Fluo-N2DH-SIM+/02/t%03d.tif';
-% test_path_base = '/home/arbellea/ISBI-Challenge-Data/Challenge/Fluo-N2DH-SIM+/02/t%03d.tif';
-% seg_path_base = '/home/arbellea/ISBI-Challenge-Data/Training/Fluo-N2DH-SIM+/02_GT/SEG/man_seg%03d.tif';
-% net_path_base = '/home/arbellea/ISBI-Challenge-Data/Training/Fluo-N2DH-SIM+/02_GT/NET/';
-% T = 0:149;
-
-% % 
-% im_path_base = '/home/arbellea/ISBI-Challenge-Data/Training/Fluo-C2DL-MSC/01/t%03d.tif';
-% test_path_base = '/home/arbellea/ISBI-Challenge-Data/Challenge/Fluo-C2DL-MSC/01/t%03d.tif';
-% seg_path_base = '/home/arbellea/ISBI-Challenge-Data/Training/Fluo-C2DL-MSC/01_GT/SEG/man_seg%03d.tif';
-% net_path_base = '/home/arbellea/ISBI-Challenge-Data/Training/Fluo-C2DL-MSC/01_GT/NET/';
-% T = [5,7,11,19,24,25,29,33,34,35,45];
-
-% im_path_base = '/home/arbellea/ISBI-Challenge-Data/Training/Fluo-C2DL-MSC/02/t%03d.tif';
-% test_path_base = '/home/arbellea/ISBI-Challenge-Data/Challenge/Fluo-C2DL-MSC/02/t%03d.tif';
-% seg_path_base = '/home/arbellea/ISBI-Challenge-Data/Training/Fluo-C2DL-MSC/02_GT/SEG/man_seg%03d.tif';
-% net_path_base = '/home/arbellea/ISBI-Challenge-Data/Training/Fluo-C2DL-MSC/02_GT/NET/';
-% T = [0,3,5,6,7,8,9,10,11,12,];
+im_path_base = sprintf('%s/Training/%s/%s/t%03d.tif',data_path_base,data_set_name,seq);
+seg_path_base = sprintf('%s/Training/%s/%s_GT/SEG/man_seg%03d.tif',data_path_base,data_set_name,seq);
+test_path_base = sprintf('%s/Challenge/%s/%s/t%03d.tif',data_path_base,data_set_name,seq);
+net_path_base = sprintg('%s/DataForNet/%s_%s/',output_path_base,data_set_name,seq)
 
 
 %%
@@ -43,20 +18,20 @@ mkdir(net_path_base)
 mkdir(fullfile(net_path_base,'Seg'))
 mkdir(fullfile(net_path_base,'Raw'))
 %%
-% fidT = fopen(fullfile(net_path_base,'train.csv'),'w');
-% fidV = fopen(fullfile(net_path_base,'val.csv'),'w');
-lenT = floor(numel(T)/2);
+fidT = fopen(fullfile(net_path_base,'train.csv'),'w');
+fidV = fopen(fullfile(net_path_base,'val.csv'),'w');
+lenT = floor(numel(valid_segmentations)/2);
 clear T2
 for i = 1:lenT
-    T2(2*i-1) = T(lenT+(i));
-    T2(2*i) = T(lenT-(i-1));
+    T2(2*i-1) = valid_segmentations(lenT+(i));
+    T2(2*i) = valid_segmentations(lenT-(i-1));
     
 end 
-if mod(numel(T),2)
-    T2(end+1) = T(end);
+if mod(numel(valid_segmentations),2)
+    T2(end+1) = valid_segmentations(end);
 end
 m_I = 0
-for i = 1:numel(T)
+for i = 1:numel(valid_segmentations)
     t = T2(i);
     im_path = sprintf(im_path_base,t);
     seg_path = sprintf(seg_path_base,t);
@@ -79,7 +54,7 @@ for i = 1:numel(T)
     L = RGB(:,:,2) + RGB(:,:,3)*2;
     out_im_path = sprintf('./Raw/t%03d.png',t);
     out_seg_path = sprintf('./Seg/t%03d.png',t);
-    if i/numel(T)<0.7
+    if i/numel(valid_segmentations)<0.7
         fprintf(fidT,'%s,%s\n', out_im_path, out_seg_path);
     else
         
@@ -90,7 +65,6 @@ for i = 1:numel(T)
     imwrite(uint8(L),fullfile(net_path_base,out_seg_path))
 end
 fclose(fidT);
-
 fclose(fidV);
 %%
 t=0;
