@@ -1,4 +1,3 @@
-
 import tensorflow as tf
 from tensorflow.python.client import timeline
 from Network import Network
@@ -16,29 +15,10 @@ try:
     import matplotlib.pyplot as plt
 except ImportError:
     plt = None
-__author__ = 'assafarbelle'
-
-
-DEFAULT_DATA_DIR = '/HOME/Data'
-DEFAULT_SNAPSHOT_DIR = '/HOME/DeepCellSegOut/Snapshots'
-DEFAULT_LOG_DIR = '/HOME/DeepCellSegOut/Logs'
-DEFAULT_OUT_DIR = '/HOME/DeepCellSegOut/Outputs'
-
-if not os.path.exists(DEFAULT_DATA_DIR):
-    DEFAULT_DATA_DIR = '/home/arbellea/ess/Data'
-    DEFAULT_SNAPSHOT_DIR = '/home/arbellea/ess/Results/Snapshots'
-    DEFAULT_LOG_DIR = '/home/arbellea/ess/Results/Logs'
-    DEFAULT_OUT_DIR = '/home/arbellea/ess/Results/Output'
-
-
-DATA_DIR = os.environ.get('DATA_DIR', DEFAULT_DATA_DIR)
-SNAPSHOT_DIR = os.environ.get('SNAPSHOT_DIR', DEFAULT_SNAPSHOT_DIR)
-LOG_DIR = os.environ.get('LOG_DIR', DEFAULT_LOG_DIR)
-OUT_DIR = os.environ.get('OUT_DIR', DEFAULT_OUT_DIR)
+__author__ = 'arbellea@post.bgu.ac.il'
 
 
 class SegUNetG(Network):
-
     def __init__(self, image_batch):
         self.image_batch = image_batch
         self.data_format = 'NCHW'
@@ -50,8 +30,8 @@ class SegUNetG(Network):
         kxy = 7
         kout = 16
 
-        conv = self.conv('conv1',  self.image_batch, kxy, kxy, kout)
-        bn = self.batch_norm('bn1',conv, phase_train, reuse)
+        conv = self.conv('conv1', self.image_batch, kxy, kxy, kout)
+        bn = self.batch_norm('bn1', conv, phase_train, reuse)
         relu = self.leaky_relu('relu1', bn)
         pool = self.max_pool('pool1', relu, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1])
 
@@ -78,7 +58,7 @@ class SegUNetG(Network):
         kout = 64
 
         conv = self.conv('conv4', pool, kxy, kxy, kout)
-        bn = self.batch_norm('bn4',conv , phase_train, reuse)
+        bn = self.batch_norm('bn4', conv, phase_train, reuse)
         relu = self.leaky_relu('relu4', bn)
 
         # Start Upsampeling
@@ -88,9 +68,9 @@ class SegUNetG(Network):
         kout = 32
         in_shape = self.layers['relu3'].get_shape().as_list()
         if self.channel_first:
-            out_shape = [in_shape[0],kout]+in_shape[2:]
+            out_shape = [in_shape[0], kout] + in_shape[2:]
         else:
-            out_shape = self.layers['relu3'].get_shape().as_list()[:3]+[kout]
+            out_shape = self.layers['relu3'].get_shape().as_list()[:3] + [kout]
         conv = self.conv2d_transpose('conv5', relu, kxy, kxy, kout, outshape=out_shape, stride=[1, 2, 2, 1])
         s = conv.get_shape().is_fully_defined()
         bn = self.batch_norm('bn5', conv, phase_train, reuse)
@@ -103,10 +83,10 @@ class SegUNetG(Network):
 
         in_shape = self.layers['relu2'].get_shape().as_list()
         if self.channel_first:
-            out_shape = [in_shape[0],kout]+in_shape[2:]
+            out_shape = [in_shape[0], kout] + in_shape[2:]
         else:
-            out_shape = self.layers['relu2'].get_shape().as_list()[:3]+[kout]
-        conv = self.conv2d_transpose('conv6', concat, kxy, kxy, kout,outshape=out_shape, stride=[1, 2, 2, 1])
+            out_shape = self.layers['relu2'].get_shape().as_list()[:3] + [kout]
+        conv = self.conv2d_transpose('conv6', concat, kxy, kxy, kout, outshape=out_shape, stride=[1, 2, 2, 1])
         bn = self.batch_norm('bn6', conv, phase_train, reuse)
         relu = self.leaky_relu('relu6', bn)
 
@@ -117,9 +97,9 @@ class SegUNetG(Network):
 
         in_shape = self.layers['relu1'].get_shape().as_list()
         if self.channel_first:
-            out_shape = [in_shape[0],kout]+in_shape[2:]
+            out_shape = [in_shape[0], kout] + in_shape[2:]
         else:
-            out_shape = self.layers['relu1'].get_shape().as_list()[:3]+[kout]
+            out_shape = self.layers['relu1'].get_shape().as_list()[:3] + [kout]
         conv = self.conv2d_transpose('conv7', concat, kxy, kxy, kout, outshape=out_shape, stride=[1, 2, 2, 1])
         bn = self.batch_norm('bn7', conv, phase_train, reuse)
         relu = self.leaky_relu('relu7', bn)
@@ -139,9 +119,9 @@ class SegUNetG(Network):
 
         in_shape = self.image_batch.get_shape().as_list()
         if self.channel_first:
-            out_shape = [in_shape[0],kout]+in_shape[2:]
+            out_shape = [in_shape[0], kout] + in_shape[2:]
         else:
-            out_shape = self.image_batch.get_shape().as_list()[:3]+[kout]
+            out_shape = self.image_batch.get_shape().as_list()[:3] + [kout]
         conv = self.conv2d_transpose('conv9', relu, kxy, kxy, kout, outshape=out_shape, stride=[1, 1, 1, 1])
 
         if use_edges:
@@ -164,7 +144,6 @@ class SegUNetG(Network):
 
 
 class SegUNetG2(Network):
-
     def __init__(self, image_batch):
         self.image_batch = image_batch
         self.data_format = 'NCHW'
@@ -173,10 +152,11 @@ class SegUNetG2(Network):
     def build(self, phase_train, reuse=None, use_edges=False):
 
         def conv_bn_rel(ten_in, kxy, kout, idx):
-            conv_ = self.conv('conv%d'%idx, ten_in, kxy, kxy, kout, padding='SAME')
-            bn = self.batch_norm('bn%d'%idx, conv_, phase_train, reuse)
-            relu = self.leaky_relu('relu%d'%idx, bn)
-            return  relu
+            conv_ = self.conv('conv%d' % idx, ten_in, kxy, kxy, kout, padding='SAME')
+            bn = self.batch_norm('bn%d' % idx, conv_, phase_train, reuse)
+            relu = self.leaky_relu('relu%d' % idx, bn)
+            return relu
+
         # Layer 1 Left
         kxy = 3
         kout = 64
@@ -187,7 +167,7 @@ class SegUNetG2(Network):
         idx += 1
         pool1_2 = self.max_pool('pool1', relu1_2, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1])
 
-        #Layer 2 Left
+        # Layer 2 Left
 
         kout = 128
         relu2_1 = conv_bn_rel(pool1_2, kxy, kout, idx)
@@ -222,23 +202,23 @@ class SegUNetG2(Network):
         kout = 512
         in_shape = relu4_2.get_shape().as_list()
         if self.channel_first:
-            out_shape = [in_shape[0], kout]+in_shape[2:]
+            out_shape = [in_shape[0], kout] + in_shape[2:]
         else:
-            out_shape = in_shape[:3]+[kout]
+            out_shape = in_shape[:3] + [kout]
 
         up_5_2 = self.conv2d_transpose('conv_up5', relu5_2, kxy, kxy, kout, outshape=out_shape, stride=[1, 2, 2, 1])
         concat_4 = self.concat('concat4', [relu4_2, up_5_2], dim=3)
-        relu_4_3 = conv_bn_rel(concat_4,kxy, kout, idx)
-        idx +=1
+        relu_4_3 = conv_bn_rel(concat_4, kxy, kout, idx)
+        idx += 1
 
         kout = 256
         relu4_4 = conv_bn_rel(relu_4_3, kxy, kout, idx)
         idx += 1
         in_shape = relu3_2.get_shape().as_list()
         if self.channel_first:
-            out_shape = [in_shape[0], kout]+in_shape[2:]
+            out_shape = [in_shape[0], kout] + in_shape[2:]
         else:
-            out_shape = in_shape[:3]+[kout]
+            out_shape = in_shape[:3] + [kout]
 
         up_4_4 = self.conv2d_transpose('conv_up4', relu4_4, kxy, kxy, kout, outshape=out_shape, stride=[1, 2, 2, 1])
         concat_3 = self.concat('concat3', [relu3_2, up_4_4], dim=3)
@@ -249,9 +229,9 @@ class SegUNetG2(Network):
         idx += 1
         in_shape = relu2_2.get_shape().as_list()
         if self.channel_first:
-            out_shape = [in_shape[0], kout]+in_shape[2:]
+            out_shape = [in_shape[0], kout] + in_shape[2:]
         else:
-            out_shape = in_shape[:3]+[kout]
+            out_shape = in_shape[:3] + [kout]
 
         up_3_4 = self.conv2d_transpose('conv_up3', relu3_4, kxy, kxy, kout, outshape=out_shape, stride=[1, 2, 2, 1])
 
@@ -263,9 +243,9 @@ class SegUNetG2(Network):
         idx += 1
         in_shape = relu1_2.get_shape().as_list()
         if self.channel_first:
-            out_shape = [in_shape[0], kout]+in_shape[2:]
+            out_shape = [in_shape[0], kout] + in_shape[2:]
         else:
-            out_shape = in_shape[:3]+[kout]
+            out_shape = in_shape[:3] + [kout]
 
         up_2_4 = self.conv2d_transpose('conv_up2', relu2_4, kxy, kxy, kout, outshape=out_shape, stride=[1, 2, 2, 1])
         concat_1 = self.concat('concat1', [relu1_2, up_2_4], dim=3)
@@ -302,22 +282,19 @@ class SegUNetG2(Network):
 
 
 class SegUNetG3(Network):
-
     def __init__(self, image_batch):
         self.image_batch = self.fix_image_size(image_batch)
         self.data_format = 'NCHW'
         super(SegUNetG3, self).__init__()
-
-
 
     @staticmethod
     def fix_image_size(image_batch):
         im_size = image_batch.get_shape().as_list()[1:3]
         imy = im_size[0]
         imx = im_size[1]
-        if not ((np.floor(imx/(2.0**4)))*2**4 == imx):
-            new_w = ((np.floor(imx/(2.0**4)))*2**4).astype(np.int32)
-            start_x = np.floor((imx-new_w)/2.0).astype(np.int32)
+        if not ((np.floor(imx / (2.0 ** 4))) * 2 ** 4 == imx):
+            new_w = ((np.floor(imx / (2.0 ** 4))) * 2 ** 4).astype(np.int32)
+            start_x = np.floor((imx - new_w) / 2.0).astype(np.int32)
         else:
             new_w = imx
             start_x = 0
@@ -333,10 +310,11 @@ class SegUNetG3(Network):
     def build(self, phase_train, reuse=None, use_edges=False):
 
         def conv_bn_rel(ten_in, kxy, kout, idx):
-            conv_ = self.conv('conv%d'%idx, ten_in, kxy, kxy, kout, padding='SAME')
-            bn = self.batch_norm('bn%d'%idx, conv_, phase_train, reuse)
-            relu = self.leaky_relu('relu%d'%idx, bn)
+            conv_ = self.conv('conv%d' % idx, ten_in, kxy, kxy, kout, padding='SAME')
+            bn = self.batch_norm('bn%d' % idx, conv_, phase_train, reuse)
+            relu = self.leaky_relu('relu%d' % idx, bn)
             return relu
+
         # Layer 1 Left
         kxy = 3
         kout = 64
@@ -381,24 +359,24 @@ class SegUNetG3(Network):
         kout = 512
         in_shape = relu4_2.get_shape().as_list()
         if self.channel_first:
-            out_shape = [tf.shape(relu4_2)[0], kout]+in_shape[2:]
+            out_shape = [tf.shape(relu4_2)[0], kout] + in_shape[2:]
         else:
-            out_shape = [tf.shape(relu4_2)[0]]+in_shape[1:3]+[kout]
+            out_shape = [tf.shape(relu4_2)[0]] + in_shape[1:3] + [kout]
 
         up_5_2 = self.conv2d_transpose('conv_up5', relu5_2, kxy, kxy, kout, outshape=out_shape, stride=[1, 2, 2, 1])
         # relu4_2_c = tf.slice(relu4_2, [0,1,1,0],[-1, int(out_shape[1]), int(out_shape[2]), -1])
         concat_4 = self.concat('concat4', [relu4_2, up_5_2], dim=3)
-        relu_4_3 = conv_bn_rel(concat_4,kxy, kout, idx)
-        idx +=1
+        relu_4_3 = conv_bn_rel(concat_4, kxy, kout, idx)
+        idx += 1
 
         kout = 256
         relu4_4 = conv_bn_rel(relu_4_3, kxy, kout, idx)
         idx += 1
         in_shape = relu3_2.get_shape().as_list()
         if self.channel_first:
-            out_shape = [tf.shape(relu3_2)[0], kout]+in_shape[2:]
+            out_shape = [tf.shape(relu3_2)[0], kout] + in_shape[2:]
         else:
-            out_shape = [tf.shape(relu3_2)[0]]+in_shape[1:3]+[kout]
+            out_shape = [tf.shape(relu3_2)[0]] + in_shape[1:3] + [kout]
 
         up_4_4 = self.conv2d_transpose('conv_up4', relu4_4, kxy, kxy, kout, outshape=out_shape, stride=[1, 2, 2, 1])
         # relu3_2_c = tf.slice(relu3_2, [0, 1, 1, 0], [-1, int(out_shape[1]), int(out_shape[2]), -1])
@@ -411,9 +389,9 @@ class SegUNetG3(Network):
         idx += 1
         in_shape = relu2_2.get_shape().as_list()
         if self.channel_first:
-            out_shape = [tf.shape(relu2_2)[0], kout]+in_shape[2:]
+            out_shape = [tf.shape(relu2_2)[0], kout] + in_shape[2:]
         else:
-            out_shape = [tf.shape(relu2_2)[0]]+in_shape[1:3]+[kout]
+            out_shape = [tf.shape(relu2_2)[0]] + in_shape[1:3] + [kout]
         up_3_4 = self.conv2d_transpose('conv_up3', relu3_4, kxy, kxy, kout, outshape=out_shape, stride=[1, 2, 2, 1])
         # relu2_2_c = tf.slice(relu2_2, [0, 1, 1, 0], [-1, int(out_shape[1]), int(out_shape[2]), -1])
         concat_2 = self.concat('concat2', [relu2_2, up_3_4], dim=3)
@@ -425,9 +403,9 @@ class SegUNetG3(Network):
         idx += 1
         in_shape = relu1_2.get_shape().as_list()
         if self.channel_first:
-            out_shape = [tf.shape(relu1_2)[0], kout]+in_shape[2:]
+            out_shape = [tf.shape(relu1_2)[0], kout] + in_shape[2:]
         else:
-            out_shape = [tf.shape(relu1_2)[0]]+in_shape[1:3]+[kout]
+            out_shape = [tf.shape(relu1_2)[0]] + in_shape[1:3] + [kout]
         up_2_4 = self.conv2d_transpose('conv_up2', relu2_4, kxy, kxy, kout, outshape=out_shape, stride=[1, 2, 2, 1])
         # relu1_2_c = tf.slice(relu1_2, [0, 1, 1, 0], [-1, int(out_shape[1]), int(out_shape[2]), -1])
         concat_1 = self.concat('concat1', [relu1_2, up_2_4], dim=3)
@@ -464,7 +442,6 @@ class SegUNetG3(Network):
 
 
 class SegNetG(Network):
-
     def __init__(self, image_batch):
         self.image_batch = image_batch
         self.data_format = 'NCHW'
@@ -479,7 +456,7 @@ class SegNetG(Network):
         conv = self.conv('conv1', self.image_batch, kxy, kxy, kout, padding='VALID')
         bn = self.batch_norm('bn1', conv, phase_train, reuse)
         relu = self.leaky_relu('relu1', bn)
-        crop_size += (kxy-1)/2
+        crop_size += (kxy - 1) / 2
 
         # Layer 2
         kxy = 7
@@ -487,7 +464,7 @@ class SegNetG(Network):
         conv = self.conv('conv2', relu, kxy, kxy, kout, padding='VALID')
         bn = self.batch_norm('bn2', conv, phase_train, reuse)
         relu = self.leaky_relu('relu2', bn)
-        crop_size += (kxy-1)/2
+        crop_size += (kxy - 1) / 2
 
         # Layer 3
         kxy = 5
@@ -495,7 +472,7 @@ class SegNetG(Network):
         conv = self.conv('conv3', relu, kxy, kxy, kout, padding='VALID')
         bn = self.batch_norm('bn3', conv, phase_train, reuse)
         relu = self.leaky_relu('relu3', bn)
-        crop_size += (kxy-1)/2
+        crop_size += (kxy - 1) / 2
 
         # Layer 4
         kxy = 3
@@ -503,7 +480,7 @@ class SegNetG(Network):
         conv = self.conv('conv4', relu, kxy, kxy, kout, padding='VALID')
         bn = self.batch_norm('bn4', conv, phase_train, reuse)
         relu = self.leaky_relu('relu4', bn)
-        crop_size += (kxy-1)/2
+        crop_size += (kxy - 1) / 2
 
         # Layer 5
         kxy = 1
@@ -513,7 +490,7 @@ class SegNetG(Network):
             kout = 1
         bn = self.batch_norm('bn5', relu, phase_train, reuse)
         conv = self.conv('conv5', bn, kxy, kxy, kout)
-        crop_size += (kxy-1)/2
+        crop_size += (kxy - 1) / 2
         if use_edges:
 
             if self.channel_first:
@@ -535,7 +512,6 @@ class SegNetG(Network):
 
 
 class SegNetG2(Network):
-
     def __init__(self, image_batch):
         self.image_batch = image_batch
         super(SegNetG2, self).__init__()
@@ -548,7 +524,7 @@ class SegNetG2(Network):
         conv = self.conv('conv1', self.image_batch, kxy, kxy, kout, padding='VALID')
         bn = self.batch_norm('bn1', conv, phase_train, reuse)
         relu = self.leaky_relu('relu1', bn)
-        crop_size += (kxy-1)/2
+        crop_size += (kxy - 1) / 2
 
         # Layer 2
         kxy = 3
@@ -556,7 +532,7 @@ class SegNetG2(Network):
         conv = self.conv('conv2', relu, kxy, kxy, kout, padding='VALID')
         bn = self.batch_norm('bn2', conv, phase_train, reuse)
         relu = self.leaky_relu('relu2', bn)
-        crop_size += (kxy-1)/2
+        crop_size += (kxy - 1) / 2
 
         # Layer 3
         kxy = 3
@@ -564,7 +540,7 @@ class SegNetG2(Network):
         conv = self.conv('conv3', relu, kxy, kxy, kout, padding='VALID')
         bn = self.batch_norm('bn3', conv, phase_train, reuse)
         relu = self.leaky_relu('relu3', bn)
-        crop_size += (kxy-1)/2
+        crop_size += (kxy - 1) / 2
 
         # Layer 4
         kxy = 3
@@ -572,7 +548,7 @@ class SegNetG2(Network):
         conv = self.conv('conv4', relu, kxy, kxy, kout, padding='VALID')
         bn = self.batch_norm('bn4', conv, phase_train, reuse)
         relu = self.leaky_relu('relu4', bn)
-        crop_size += (kxy-1)/2
+        crop_size += (kxy - 1) / 2
 
         # Layer 5
         kxy = 1
@@ -582,7 +558,7 @@ class SegNetG2(Network):
             kout = 1
         bn = self.batch_norm('bn5', relu, phase_train, reuse)
         conv = self.conv('conv5', bn, kxy, kxy, kout)
-        crop_size += (kxy-1)/2
+        crop_size += (kxy - 1) / 2
         if use_edges:
             if self.channel_first:
 
@@ -611,7 +587,6 @@ class RibSegNet(Network):
         super(RibSegNet, self).__init__()
 
     def build(self, phase_train, reuse=None):
-
         def rib(name, left, right, center, kxy, kout, stride=None):
             # Left
 
@@ -678,6 +653,7 @@ class RibSegNet2(Network):
 
     def build(self, phase_train, reuse=None):
         concat_dim = 1 if self.channel_first else 3
+
         def rib(name, left, right, center, kxy, kout, stride=None):
             # Left
 
@@ -737,21 +713,20 @@ class RibSegNet2(Network):
 
 
 class VGGNet(Network):
-
     def __init__(self, image_batch, seg_batch):
         self.image_batch = image_batch
         self.seg_batch = seg_batch
-        self.data_format ='NCHW'
+        self.data_format = 'NCHW'
         super(VGGNet, self).__init__()
 
     def build(self, phase_train, reuse=None):
-
         def conv_bn_relu(name, in_tensor, kxy, kout, stride=(1, 1, 1, 1)):
-            conv = self.conv('conv_'+name, in_tensor, kxy, kxy, kout, stride, biased=True)
-            bn = self.batch_norm('bn_'+name, conv, phase_train, reuse)
+            conv = self.conv('conv_' + name, in_tensor, kxy, kxy, kout, stride, biased=True)
+            bn = self.batch_norm('bn_' + name, conv, phase_train, reuse)
             relu = self.leaky_relu('relu' + name, bn)
             return relu
-        in_concat = self.concat('concat_input',[self.image_batch,self.seg_batch], dim=3)
+
+        in_concat = self.concat('concat_input', [self.image_batch, self.seg_batch], dim=3)
         conv1 = conv_bn_relu('1', in_concat, 3, 64)
         conv2 = conv_bn_relu('2', conv1, 3, 64)
         pool2 = self.max_pool('pool_2', conv2, [1, 2, 2, 1], [1, 2, 2, 1])
@@ -781,7 +756,6 @@ class VGGNet(Network):
 
 
 class GANTrainer(object):
-
     def __init__(self, train_filenames, val_filenames, test_filenames, summaries_dir, num_examples=None, Unet=False,
                  RibD=True, crop_size=(128, 128)):
 
@@ -836,9 +810,6 @@ class GANTrainer(object):
             self.netD = VGGNet
         self.t = tf.placeholder(tf.int64, (), 'iteration')
 
-
-
-
     @staticmethod
     def cross_entropy_loss(image, label):
         im_reshape = tf.reshape(image, (-1, 3))
@@ -871,13 +842,13 @@ class GANTrainer(object):
                     cropped_seg = tf.squeeze(tf.one_hot(indices=cropped_seg, depth=3, axis=1), axis=2)
 
                     cropped_seg_gan = tf.to_int32(tf.slice(train_seg_batch_gan, [0, 0, crop_size, crop_size],
-                                           [-1, -1, target_hw[0], target_hw[1]]))
+                                                           [-1, -1, target_hw[0], target_hw[1]]))
                     cropped_seg_gan = tf.squeeze(tf.one_hot(indices=cropped_seg_gan, depth=3, axis=1), axis=2)
 
                 else:
                     cropped_seg = tf.to_float(tf.equal(tf.slice(train_seg_batch, [0, 0, crop_size, crop_size],
                                                                 [-1, -1, target_hw[0], target_hw[1]]), tf.constant(1.)))
-                cropped_image_gan = tf.slice(train_image_batch_gan,  [0, 0, crop_size, crop_size],
+                cropped_image_gan = tf.slice(train_image_batch_gan, [0, 0, crop_size, crop_size],
                                              [-1, -1, target_hw[0], target_hw[1]])
 
                 full_batch_im = tf.concat(axis=0, values=[cropped_image, cropped_image_gan])
@@ -891,7 +862,7 @@ class GANTrainer(object):
                 log2_const = tf.constant(0.6931)
                 # loss_g = tf.div(1., tf.maximum(loss_d, 0.01))
                 loss_g = tf.nn.sigmoid_cross_entropy_with_logits(logits=net_d.layers['fc_out'],
-                                                                 labels=1-full_batch_label)
+                                                                 labels=1 - full_batch_label)
                 loss_g_crossentropy = self.cross_entropy_loss(gan_seg_batch, cropped_seg_gan)
 
                 update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS, scope='net_g')
@@ -901,17 +872,17 @@ class GANTrainer(object):
 
                 self.batch_loss_d = tf.reduce_mean(loss_d)
 
-                adv_percent = 1-ce_percent
+                adv_percent = 1 - ce_percent
                 if not adv_ascent_temprature:
                     adv_ascent = 1
                 else:
-                    adv_ascent = 1-tf.exp(-tf.div(tf.to_float(self.t),
-                                                  tf.to_float(adv_ascent_temprature)))
-                adv_percent_ascent = adv_ascent*adv_percent
+                    adv_ascent = 1 - tf.exp(-tf.div(tf.to_float(self.t),
+                                                    tf.to_float(adv_ascent_temprature)))
+                adv_percent_ascent = adv_ascent * adv_percent
                 self.batch_loss_g = (tf.reduce_mean(loss_g) * adv_percent_ascent +
-                                     loss_g_crossentropy * (1-adv_percent_ascent))
+                                     loss_g_crossentropy * (1 - adv_percent_ascent))
 
-                #self.batch_loss_g = tf.reduce_mean(loss_g) + loss_g_crossentropy
+                # self.batch_loss_g = tf.reduce_mean(loss_g) + loss_g_crossentropy
 
                 # tf.get_variable_scope().reuse_variables()
 
@@ -921,14 +892,14 @@ class GANTrainer(object):
             with tf.name_scope('val_tower0'):
 
                 val_net_g = self.netG(val_image_batch_gan)
-                val_cropped_image = tf.slice(val_image_batch,  [0, 0, crop_size, crop_size],
+                val_cropped_image = tf.slice(val_image_batch, [0, 0, crop_size, crop_size],
                                              [-1, -1, target_hw[0], target_hw[1]])
                 if use_edges:
                     val_cropped_seg = tf.to_int32(tf.slice(val_seg_batch, [0, 0, crop_size, crop_size],
                                                            [-1, -1, target_hw[0], target_hw[1]]))
                     val_cropped_seg = tf.squeeze(tf.one_hot(indices=val_cropped_seg, depth=3, axis=1), axis=2)
                     val_cropped_seg_gan = tf.to_int32(tf.slice(val_seg_batch_gan, [0, 0, crop_size, crop_size],
-                                                               [-1, -1,  target_hw[0], target_hw[1]]))
+                                                               [-1, -1, target_hw[0], target_hw[1]]))
                     val_cropped_seg_gan = tf.squeeze(tf.one_hot(indices=val_cropped_seg_gan, depth=3, axis=1), axis=2)
 
                 else:
@@ -936,7 +907,7 @@ class GANTrainer(object):
                                                                     [-1, -1, target_hw[0], target_hw[1]]),
                                                            tf.constant(1.)))
 
-                val_cropped_image_gan = tf.slice(val_image_batch_gan,  [0, 0, crop_size, crop_size],
+                val_cropped_image_gan = tf.slice(val_image_batch_gan, [0, 0, crop_size, crop_size],
                                                  [-1, -1, target_hw[0], target_hw[1]])
 
                 with tf.variable_scope('net_g', reuse=True):
@@ -952,7 +923,7 @@ class GANTrainer(object):
                                                                      labels=val_full_batch_label)
 
                 val_loss_g = tf.nn.sigmoid_cross_entropy_with_logits(logits=val_net_d.layers['fc_out'],
-                                                                     labels=1-val_full_batch_label)
+                                                                     labels=1 - val_full_batch_label)
                 eps = tf.constant(np.finfo(np.float32).eps)
                 if use_edges:
                     val_hard_seg = tf.expand_dims(tf.greater(tf.to_float(val_net_g.layers['fg']), tf.constant(0.5)), 1)
@@ -1014,7 +985,7 @@ class GANTrainer(object):
             val_merged_summaries = tf.summary.merge(self.val_objective_summary)
             val_merged_image_summaries = tf.summary.merge(self.val_image_summary)
             train_writer = tf.summary.FileWriter(os.path.join(self.summaries_dir, 'train'),
-                                                              graph=tf.get_default_graph())
+                                                 graph=tf.get_default_graph())
             val_writer = tf.summary.FileWriter(os.path.join(self.summaries_dir, 'val'))
         else:
             train_merged_summaries_g = tf.no_op()
@@ -1036,7 +1007,7 @@ class GANTrainer(object):
                 chkpt_info = tf.train.get_checkpoint_state(save_dir)
                 if chkpt_info:
                     chkpt_filename = chkpt_info.model_checkpoint_path
-                    t = int(re.findall(r'\d+', os.path.basename(chkpt_filename))[0])+1
+                    t = int(re.findall(r'\d+', os.path.basename(chkpt_filename))[0]) + 1
                     saver.restore(sess, os.path.join(save_dir, os.path.basename(chkpt_filename)))
 
             threads = tf.train.start_queue_runners(sess, coord=coord)
@@ -1046,7 +1017,7 @@ class GANTrainer(object):
             train_fetch_g = [self.train_step_g, self.batch_loss_g, self.total_loss_g, train_merged_summaries_g]
 
             train_d = True
-            PROFILE=False
+            PROFILE = False
             if PROFILE:
                 options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
                 try:
@@ -1059,9 +1030,9 @@ class GANTrainer(object):
 
             for i in range(t, max_itr):
                 feed_dict[self.t] = i
-                if not i % (d_steps+g_steps):
+                if not i % (d_steps + g_steps):
                     train_d = True
-                if i % (d_steps+g_steps) == d_steps:
+                if i % (d_steps + g_steps) == d_steps:
                     train_d = False
 
                 if use_crossentropy == 1:
@@ -1076,10 +1047,11 @@ class GANTrainer(object):
                         if PROFILE:
                             fetched_timeline = timeline.Timeline(run_metadata.step_stats)
                             chrome_trace = fetched_timeline.generate_chrome_trace_format()
-                            with open(os.path.join(self.summaries_dir, 'profile', 'timeline_d{}.json'.format(i)), 'w') as f:
+                            with open(os.path.join(self.summaries_dir, 'profile', 'timeline_d{}.json'.format(i)),
+                                      'w') as f:
                                 f.write(chrome_trace)
                         if not i % 10:
-                            print ("Train Step D: %d Elapsed Time: %g Objective: %g \n" % (i, elapsed, objective))
+                            print("Train Step D: %d Elapsed Time: %g Objective: %g \n" % (i, elapsed, objective))
                         if summaries and not i % 100:
                             train_writer.add_summary(summaries_string, i)
                             train_writer.flush()
@@ -1092,10 +1064,11 @@ class GANTrainer(object):
                         if PROFILE:
                             fetched_timeline = timeline.Timeline(run_metadata.step_stats)
                             chrome_trace = fetched_timeline.generate_chrome_trace_format()
-                            with open(os.path.join(self.summaries_dir, 'profile', 'timeline_g{}.json'.format(i)), 'w') as f:
+                            with open(os.path.join(self.summaries_dir, 'profile', 'timeline_g{}.json'.format(i)),
+                                      'w') as f:
                                 f.write(chrome_trace)
                         if not i % 10:
-                            print ("Train Step G: %d Elapsed Time: %g Objective: %g \n" % (i, elapsed, objective))
+                            print("Train Step G: %d Elapsed Time: %g Objective: %g \n" % (i, elapsed, objective))
                         if summaries and not i % 100:
                             train_writer.add_summary(summaries_string, i)
                             train_writer.flush()
@@ -1104,14 +1077,14 @@ class GANTrainer(object):
                         start = time.time()
                         v_dice, summaries_string = sess.run([self.val_dice, val_merged_summaries])
                         elapsed = time.time() - start
-                        print ("Validation Step: %d Elapsed Time: %g Dice: %g\n" % (i, elapsed, v_dice))
+                        print("Validation Step: %d Elapsed Time: %g Dice: %g\n" % (i, elapsed, v_dice))
                         if summaries:
                             val_writer.add_summary(summaries_string, i)
                             val_writer.flush()
-                    if (not i % save_checkpoint_interval) or (i == max_itr-1)  or v_dice>0.9:
+                    if (not i % save_checkpoint_interval) or (i == max_itr - 1) or v_dice > 0.9:
                         save_path = saver.save(sess, os.path.join(save_dir, "model_%d.ckpt") % i)
                         print("Model saved in file: %s" % save_path)
-                    if not i % plot_examples_interval: # or (i < plot_examples_interval and not i % (d_steps+g_steps)):
+                    if not i % plot_examples_interval:  # or (i < plot_examples_interval and not i % (d_steps+g_steps)):
                         fetch = sess.run(val_merged_image_summaries)
                         val_writer.add_summary(fetch, i)
                         val_writer.flush()
@@ -1206,18 +1179,20 @@ class GANTrainer(object):
                             print("made dir")
                         scipy.misc.toimage(gan_seg_squeeze, cmin=0.0,
                                            cmax=2.).save(os.path.join(out_dir, os.path.basename(chkpt_full_filename),
-                                                                                                file_name[2:]))
-                        print ("Saved File: {}".format(file_name[2:]))
-                # coord.request_stop()
-                # coord.join(threads)
+                                                                      file_name[2:]))
+                        print("Saved File: {}".format(file_name[2:]))
+                        # coord.request_stop()
+                        # coord.join(threads)
             except (ValueError, RuntimeError, KeyboardInterrupt, tf.errors.OutOfRangeError):
                 coord.request_stop()
                 coord.join(threads)
                 print("Stopped Saving Files")
 
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Run GAN Segmentation')
-    parser.add_argument('-n', '--example_num', default=0.0, type=float, help="Number of examples from train set")
+    parser.add_argument('-n', '--example_num', default=0.0, type=float,
+                        help="Number of examples from train set, can be less than one for a franction of the frame")
     parser.add_argument('-b', '--batch_size', type=int, default=200, help="Number of examples per batch")
     parser.add_argument('-g', '--gpu_num', type=int, default=0, help="Number of examples from train set")
     parser.add_argument('-c', '--checkpoint', help="Load Specific checkpint for test")
@@ -1225,22 +1200,24 @@ if __name__ == "__main__":
     parser.add_argument('-t', '--test_only', help="Skip training phase and only run test", action="store_true")
     parser.add_argument('-N', '--run_name', default='default_run', help="Name of the run")
     parser.add_argument('-e', '--use_edges', help="segment to foregorund, background and edge", action="store_false")
-    parser.add_argument('-u', '--unet', help=" Use Unet instead of CNN", action="store_true")
+    parser.add_argument('-u', '--unet', help=" Use Unet instead of regular CNN", action="store_true")
     parser.add_argument('-o', '--out_to_file', help="Write console output to file ", action="store_true")
     parser.add_argument('-C', '--use_crossentropy', type=float, default=0.0, help="Percentage of cross-entropy lossin "
-                                                                                 "total loss")
+                                                                                  "total loss")
     parser.add_argument('-l', '--learning_rate', type=float, default=0.001, help="Learning Rate for training")
     parser.add_argument('-m', '--max_iter', type=int, default=1000000, help="Maximum number of iterations")
-    parser.add_argument('-d', '--data', default='Alon_Full_With_Edge', help="Name of data set")
+    parser.add_argument('-d', '--data', default='', help="Path to data set")
     parser.add_argument('-i', '--image_size', help="Image Size Y,X"
                                                    "ex. -i 512,640")
     parser.add_argument('--crop_size', help="Crop Size Y,X ex. -i 128,128", default='128,128')
-    parser.add_argument('-s', '--switch_rate', default = '20,20',
+    parser.add_argument('-s', '--switch_rate', default='20,20',
                         help="Number of steps for Generator and Discriminator. "
                              "ex. -s 20,30 20 for Generator and 30 for Discriminator")
     parser.add_argument('-a', '--adversarial_ascent', type=int, default=0, help="Coefficiant for adversarial ascent")
-    parser.add_argument('--rib_disc', action="store_false", help="Use RibCage Architecture for discriminator")
-
+    parser.add_argument('--vgg_disc', action="store_false",
+                        help="Use VGG architecutre instead of RibCage Architecture for discriminator")
+    parser.add_argument('--output_dir', default='~/DeepCellSegOutput',
+                        help="Directory to save outputs")
     args = parser.parse_args()
 
     print(args)
@@ -1272,12 +1249,13 @@ if __name__ == "__main__":
 
     output_to_file = args.out_to_file
 
+    SNAPSHOT_DIR = os.path.join(args.output_dir, 'Snapshots')
+    LOG_DIR = os.path.join(args.output_dir, 'Logs')
+    OUT_DIR = os.path.join(args.output_dir, 'Outputs')
 
-    base_folder = os.path.join(DATA_DIR, data_set_name+'/')
+    base_folder = data_set_name if data_set_name[-1] == '/' else data_set_name + '/'
     train_filename = os.path.join(base_folder, 'train.csv')
     val_filename = os.path.join(base_folder, 'val.csv')
-    #test_filename = os.path.join(DATA_DIR, 'Alon_Full_All', 'test.csv')
-    #test_base_folder = os.path.join(DATA_DIR, 'Alon_Full_All'+'/')
     test_filename = os.path.join(base_folder, 'test.csv')
     test_base_folder = base_folder
     if args.image_size:
@@ -1322,7 +1300,6 @@ if __name__ == "__main__":
         if output_chkpnt_info:
             if not checkpoint:
                 chkpt_full_filename = output_chkpnt_info.model_checkpoint_path
-
 
             print("Loading Checkpoint: {}".format(os.path.basename(chkpt_full_filename)))
             trainer.write_full_output_from_checkpoint(os.path.join(save_dir, os.path.basename(chkpt_full_filename)), 10,
