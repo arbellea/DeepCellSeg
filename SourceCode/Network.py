@@ -1,6 +1,6 @@
 import Layers
 import tensorflow as tf
-# from ConvLSTM.BasicConvLSTMCell import BasicConvLSTMCell
+from ConvLSTM.BasicConvLSTMCell import BasicConvLSTMCell
 
 DEFAULT_DATA_FORMAT = "NCHW"
 
@@ -129,4 +129,11 @@ class Network(object):
     @layer
     def ge(self, name, in_tensor, thr):
         return tf.greater_equal(in_tensor, thr, name=name)
+
+    @layer
+    def convLSTM(self, name, shape, filter_size, num_features, forget_bias=1.0,
+               state_is_tuple=True, activation=tf.nn.tanh, data_format='NHWC'):
+        conv_lstm = BasicConvLSTMCell()
+        pass
+
 __author__ = 'assafarbelle'

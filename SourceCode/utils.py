@@ -91,10 +91,12 @@ def plot_segmentation(I,GT,Seg, fig=None):
 
 def run_session():
     coord = tf.train.Coordinator()
+    config = tf.ConfigProto(log_device_placement=False, allow_soft_placement=True)
+    config.gpu_options.allow_growth = True
     init_op = tf.group(tf.global_variables_initializer(), tf.local_variables_initializer())
-    sess = tf.InteractiveSession()
+    sess = tf.InteractiveSession(config=config)
     sess.run(init_op)
-    tf.train.start_queue_runners(sess,coord=coord)
+    tf.train.start_queue_runners(sess, coord=coord)
     return sess
 
 
@@ -106,4 +108,12 @@ def one_hot(x, depth):
     concated = tf.concat(axis=1, values=[indices, sparse_labels])
     outshape = tf.concat(axis=0, values=[tf.reshape(derived_size, [1]), tf.reshape(depth, [1])])
     return tf.sparse_to_dense(concated, outshape, 1.0, 0.0)
+
+def summary_tag_replace(summary_str, old, new=''):
+    # Method to fix tb_1.x.x for validation
+    summary_proto = tf.Summary()
+    summary_proto.ParseFromString(summary_str)
+    for t, val in enumerate(summary_proto.value):
+        summary_proto.value[t].__setattr__('tag', val.tag.replace(old, new))
+    return summary_proto.SerializeToString()
 

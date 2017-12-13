@@ -1,4 +1,6 @@
-% Convert ISBI to Net
+% Convert ISBI to Net For LSTM
+sequence_length = 5;
+
 % im_path_base = '/Users/assafarbelle/Documents/ISBI-Data/Training/DIC-C2DH-HeLa/01/t%03d.tif';
 % test_path_base = '/Users/assafarbelle/Documents/ISBI-Data/Challenge/DIC-C2DH-HeLa/01/t%03d.tif';
 % seg_path_base = '/Users/assafarbelle/Documents/ISBI-Data/Training/DIC-C2DH-HeLa/01_GT/SEG/man_Seg%03d.tif';
@@ -16,6 +18,8 @@ test_path_base = '/home/arbellea/ISBI-Challenge-Data/Challenge/Fluo-N2DH-SIM+/01
 seg_path_base = '/home/arbellea/ISBI-Challenge-Data/Training/Fluo-N2DH-SIM+/01_GT/SEG/man_seg%03d.tif';
 net_path_base = '/home/arbellea/ISBI-Challenge-Data/Training/Fluo-N2DH-SIM+/01_GT/NET/';
 T = 0:64;
+
+
 
 % 
 % im_path_base = '/home/arbellea/ISBI-Challenge-Data/Training/Fluo-N2DH-SIM+/02/t%03d.tif';
@@ -43,9 +47,9 @@ mkdir(net_path_base)
 mkdir(fullfile(net_path_base,'Seg'))
 mkdir(fullfile(net_path_base,'Raw'))
 %%
-% fidT = fopen(fullfile(net_path_base,'train.csv'),'w');
-% fidV = fopen(fullfile(net_path_base,'val.csv'),'w');
-lenT = floor(numel(T)/2);
+fidT = fopen(fullfile(net_path_base,'train_lstm.csv'),'w');
+fidV = fopen(fullfile(net_path_base,'val_lstm.csv'),'w');
+lenT = floor((numel(T)-sequence_length)/2);
 clear T2
 for i = 1:lenT
     T2(2*i-1) = T(lenT+(i));
@@ -55,15 +59,12 @@ end
 if mod(numel(T),2)
     T2(end+1) = T(end);
 end
-m_I = 0
 for i = 1:numel(T)
     t = T2(i);
     im_path = sprintf(im_path_base,t);
     seg_path = sprintf(seg_path_base,t);
     S = imread(seg_path);
     I = imread(im_path);
-    m_I = max(max(I(:)),m_I)
-    continue
     s = size(S);
     RGB = zeros(s(1),s(2),3);
     RGB(:,:,1) = S==0;
@@ -77,24 +78,32 @@ for i = 1:numel(T)
     RGB(:,:,2) = F;
     RGB(:,:,3) = E;
     L = RGB(:,:,2) + RGB(:,:,3)*2;
-    out_im_path = sprintf('./Raw/t%03d.png',t);
-    out_seg_path = sprintf('./Seg/t%03d.png',t);
+    out_row = '';
+    for tt = 0:(sequence_length-1)
+        out_row = sprintf('%s./Raw/t%03d.png,./Seg/t%03d.png',out_row,t+tt,t+tt);
+        
+        if tt<(sequence_length-1)
+            out_row = sprintf('%s,',out_row);
+        else
+            out_row = sprintf('%s\n',out_row);
+        end
+    end
     if i/numel(T)<0.7
-        fprintf(fidT,'%s,%s\n', out_im_path, out_seg_path);
+        fprintf(fidT,out_row);
     else
         
-        fprintf(fidV,'%s,%s\n', out_im_path, out_seg_path);
+        fprintf(fidV,out_row);
     end
-    I = uint16(I);
-    imwrite(I, fullfile(net_path_base,out_im_path))
-    imwrite(uint8(L),fullfile(net_path_base,out_seg_path))
+    %I = uint16(I);
+    %imwrite(I, fullfile(net_path_base,out_im_path))
+    %imwrite(uint8(L),fullfile(net_path_base,out_seg_path))
 end
 fclose(fidT);
 
 fclose(fidV);
 %%
 t=0;
-fid = fopen(fullfile(net_path_base,'test.csv'),'w');
+fid = fopen(fullfile(net_path_base,'test_lstm.csv'),'w');
 mkdir(fullfile(net_path_base,'ALL'))
 while true
     im_path = sprintf(test_path_base,t);
@@ -105,14 +114,31 @@ while true
     out_im_path = sprintf('./ALL/t%03d.png',t);
     I = uint16(imread(im_path));
     imwrite(I, fullfile(net_path_base,out_im_path));
-    fprintf(fid,'%s,%s\n', out_im_path, out_im_path);
+    fprintf(fid,'%s\n', out_im_path);
     t = t+1;
 end
 fclose(fid);
 
-    
-    
-    
+%%   
+
+t=0;
+fid = fopen(fullfile(net_path_base,'test_train_lstm.csv'),'w');
+mkdir(fullfile(net_path_base,'ALL_Train'))
+while true
+    im_path = sprintf( im_path_base,t);
+    if ~exist(im_path,'file')
+        fprintf('%s Does not exist.\n Done\n', im_path);
+        break
+    end
+    out_im_path = sprintf('./ALL_Train/t%03d.png',t);
+    I = uint16(imread(im_path));
+    imwrite(I, fullfile(net_path_base,out_im_path));
+    fprintf(fid,'%s\n', out_im_path);
+    t = t+1;
+end
+fclose(fid);
+ 
+
 
 
 

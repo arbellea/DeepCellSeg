@@ -13,25 +13,34 @@ def conv(in_tensor,
          kernel_initializer=None,
          biase_initializer=None,
          padding='VALID',
-         data_format='NHWC'
+         data_format='NHWC',
+         reuse=False
          ):
 
-    with tf.variable_scope(name):
+    with tf.variable_scope(name, reuse=reuse):
         channel = 1 if data_format == 'NCHW' else 3
         in_shape = in_tensor.get_shape().as_list()[channel]
         kernel_shape = [kx, ky, in_shape, kout]
         if not stride:
             stride = [1, 1, 1, 1]
         elif isinstance(stride, int):
-            stride = [1, stride, stride, 1]
+            if channel == 3:
+                stride = [1, stride, stride, 1]
+            else:
+                stride = [1, 1, stride, stride]
         elif isinstance(stride, list) and len(stride) == 2:
-            stride = [1] + stride + [1]
+
+            if channel == 3:
+                stride = [1] + stride + [1]
+            else:
+                stride = [1, 1] + stride
+
 
         kernel = tf.get_variable('weights', shape=kernel_shape, initializer=kernel_initializer)
         conv = tf.nn.conv2d(in_tensor, kernel, strides=stride, padding=padding, data_format=data_format)
         if biased:
             b = tf.get_variable('bias', kout, initializer=biase_initializer)
-            out = tf.add(conv, b, name=name)
+            out = tf.nn.bias_add(conv, b, data_format=data_format, name=name)
         else:
             out = conv
             b = None
@@ -69,7 +78,7 @@ def conv2d_transpose(in_tensor,
                                         data_format=data_format)
         if biased:
             b = tf.get_variable('bias', kout, initializer=biase_initializer)
-            out = tf.add(conv_t, b, name=name)
+            out = tf.nn.bias_add(conv_t, b, name=name)
         else:
             out = conv_t
             b = None
@@ -110,10 +119,41 @@ def leaky_relu(in_tensor, name, alpha=0.1):
 
 
 def max_pool(in_tensor, name, ksize=None, strides=None, padding='VALID', data_format='NHWC'):
+    channel = 1 if data_format == 'NCHW' else 3
+
     if not ksize:
-        ksize = [1, 2, 2, 1]
+        if channel == 3:
+            ksize = [1, 2, 2, 1]
+        else:
+            ksize = [1, 1, 2, 2]
+    elif isinstance(ksize, int):
+        if channel == 3:
+            ksize = [1, ksize, ksize, 1]
+        else:
+            ksize = [1, 1, ksize, ksize]
+    elif isinstance(strides, list) and len(ksize) == 2:
+
+        if channel == 3:
+            ksize = [1] + ksize + [1]
+        else:
+            ksize = [1, 1] + ksize
+
     if not strides:
-        strides = [1, 2, 2, 1]
+        if channel == 3:
+            strides = [1, 2, 2, 1]
+        else:
+            strides = [1, 1, 2, 2]
+    elif isinstance(strides, int):
+        if channel == 3:
+            strides = [1, strides, strides, 1]
+        else:
+            strides = [1, 1, strides, strides]
+    elif isinstance(strides, list) and len(strides) == 2:
+
+        if channel == 3:
+            strides = [1] + strides + [1]
+        else:
+            strides = [1, 1] + strides
 
     return tf.nn.max_pool(in_tensor, ksize, strides, padding, name=name, data_format=data_format)
 
@@ -134,4 +174,4 @@ def batch_norm(in_tensor, phase_train, name, reuse=None, data_format='NHWC', cen
     with tf.variable_scope(name):
         # return tf.contrib.layers.batch_norm(in_tensor, is_training=phase_train, scope=scope, reuse=reuse)
         return tf.layers.batch_normalization(in_tensor, axis=axis, center=center, scale=scale, training=phase_train,
-                                             reuse=reuse, fused=True)
+                                             reuse=reuse, fused=True, momentum=0.99)

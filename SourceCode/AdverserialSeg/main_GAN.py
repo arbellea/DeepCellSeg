@@ -677,7 +677,7 @@ class RibSegNet2(Network):
         super(RibSegNet2, self).__init__()
 
     def build(self, phase_train, reuse=None):
-
+        concat_dim = 1 if self.channel_first else 3
         def rib(name, left, right, center, kxy, kout, stride=None):
             # Left
 
@@ -698,11 +698,12 @@ class RibSegNet2(Network):
             bn_center = self.batch_norm('bn_center_' + name, conv_center, phase_train, reuse)
             relu_center = self.leaky_relu('relu_center_' + name, bn_center)
             pool_center = tf.nn.max_pool(relu_center, [1, 2, 2, 1], [1, 2, 2, 1], 'VALID')
-            out_center = self.concat('center_out_' + name, [out_left, out_right, pool_center], dim=3)
+
+            out_center = self.concat('center_out_' + name, [out_left, out_right, pool_center], dim=concat_dim)
 
             return out_left, out_right, out_center
 
-        center0 = self.concat('center0', [self.image_batch, self.seg_batch], dim=3)
+        center0 = self.concat('center0', [self.image_batch, self.seg_batch], dim=concat_dim)
 
         # Layer 1
         k1 = 3
@@ -721,7 +722,7 @@ class RibSegNet2(Network):
 
         # Concat
 
-        concat3 = self.concat('concat_out', [left3, right3, center3])
+        concat3 = self.concat('concat_out', [left3, right3, center3], dim=concat_dim)
 
         # FC 1
 
@@ -859,7 +860,7 @@ class GANTrainer(object):
                 net_g = self.netG(train_image_batch_gan)
                 with tf.variable_scope('net_g'):
                     gan_seg_batch, crop_size = net_g.build(True, use_edges=use_edges)
-                target_hw = gan_seg_batch.get_shape().as_list()[1:3]
+                target_hw = gan_seg_batch.get_shape().as_list()[2:]
                 target_hw = [int(hw) for hw in target_hw]
                 cropped_image = tf.slice(train_image_batch, [0, 0, crop_size, crop_size],
                                          [-1, -1, target_hw[0], target_hw[1]])
@@ -916,7 +917,7 @@ class GANTrainer(object):
 
                 self.total_loss_d = self.batch_loss_d
                 self.total_loss_g = self.batch_loss_g
-        with tf.device('/cpu:0'):
+        with tf.device(device):
             with tf.name_scope('val_tower0'):
 
                 val_net_g = self.netG(val_image_batch_gan)
@@ -1119,6 +1120,7 @@ class GANTrainer(object):
                     coord.join(threads)
                     save_path = saver.save(sess, os.path.join(save_dir, "model_%d.ckpt") % i)
                     print("Model saved in file: %s Because of error" % save_path)
+
                     return False
             coord.request_stop()
             coord.join(threads)
@@ -1270,7 +1272,6 @@ if __name__ == "__main__":
 
     output_to_file = args.out_to_file
 
-    # data_set_name = 'Alon_Full_With_Edge'  # Alon_Small, Alon_Large, Alon_Full
 
     base_folder = os.path.join(DATA_DIR, data_set_name+'/')
     train_filename = os.path.join(base_folder, 'train.csv')
@@ -1313,7 +1314,7 @@ if __name__ == "__main__":
         success_flag = trainer.train(lr_g=learning_rate, lr_d=learning_rate, g_steps=gsteps, d_steps=dsteps,
                                      max_itr=max_iter,
                                      summaries=True, validation_interval=100,
-                                     save_checkpoint_interval=5000, plot_examples_interval=100,
+                                     save_checkpoint_interval=50000, plot_examples_interval=1000,
                                      use_crossentropy=use_crossentropy_flag)
     if success_flag or test_only:
         print("Writing Output")
