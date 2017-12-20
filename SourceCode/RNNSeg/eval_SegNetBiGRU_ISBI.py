@@ -10,7 +10,6 @@ from RNNSeg.Params import ParamsEvalBiGRU
 
 
 def run_net():
-
     # Data input
     data_provider = params.data_provider
 
@@ -60,19 +59,20 @@ def run_net():
         feed_dict = {}
         loop = True
         all_filenames = []
-        sigout =  [tf.nn.softmax(tf.transpose(o,(0,2,3,1))) for o in net_fw.outputs]
+        sigout = [tf.nn.softmax(tf.transpose(o, (0, 2, 3, 1))) for o in net_fw.outputs]
         t = 0
         while loop:
             try:
-                t+=1
+                t += 1
                 start_time = time.time()
                 other_time += start_time - end_time
                 fetch_out = sess.run([fw_outputs, bw_outputs, net_fw.states[-1], net_bw.states_back[-1],
                                       filename_seq_fw, filename_seq_bw, sigout, image_seq_fw], options=options,
                                      feed_dict=feed_dict)
-                seg_seq_out_fw, seg_seq_out_bw, states_fw, states_bw, file_names_fw, file_names_bw, sigoutnp, imin = fetch_out
+                (seg_seq_out_fw, seg_seq_out_bw, states_fw, states_bw, file_names_fw, file_names_bw, sigoutnp,
+                 imin) = fetch_out
                 end_time = time.time()
-                elapsed_time += end_time-start_time
+                elapsed_time += end_time - start_time
 
                 for state_ph, last_state in zip(net_fw.states[0], states_fw):
                     feed_dict[state_ph] = last_state
@@ -82,7 +82,6 @@ def run_net():
                 for state_ph, last_state in zip(net_bw.states_back[0], states_bw):
                     feed_dict[state_ph] = last_state
 
-
                 if not params.dry_run:
                     out_dir = params.experiment_tmp_fw_dir
                     for file_name, image_seg in zip(file_names_fw, seg_seq_out_fw):
@@ -90,8 +89,8 @@ def run_net():
                         fw_squeeze = np.squeeze(image_seg)
                         fw_squeeze = fw_squeeze.transpose([1, 2, 0])
                         fw_filename = os.path.join(out_dir, os.path.basename(file_name))
-                        np.save(fw_filename,fw_squeeze)
-                        all_filenames.append(os.path.basename(file_name)+'.npy')
+                        np.save(fw_filename, fw_squeeze)
+                        all_filenames.append(os.path.basename(file_name) + '.npy')
                         print("Saved File: {}".format(os.path.join(out_dir, os.path.basename(file_name))))
                     out_dir = params.experiment_tmp_bw_dir
                     for file_name, image_seg in zip(file_names_bw, seg_seq_out_bw):
@@ -114,7 +113,7 @@ def run_net():
                 bw_logits = np.load(os.path.join(params.experiment_tmp_bw_dir, file_name))
                 feed_dict = {bw_ph: bw_logits, fw_ph: fw_logits}
                 seg_out = sess.run(final_out, feed_dict)
-                seg_cell = np.argmax(seg_out, axis=2)==1
+                seg_cell = np.argmax(seg_out, axis=2) == 1
                 cc_out = cv2.connectedComponentsWithStats(seg_cell, 8, cv2.CV_32S)
                 num_cells = cc_out[0]
                 labels = cc_out[1]
@@ -126,8 +125,6 @@ def run_net():
                     stats_prev = cc_out[2]
                     centroids_prev = cc_out[3]
                     continue
-
-
 
                 num_cells_prev = cc_out[0]
                 labels_prev = cc_out[1]
@@ -142,16 +139,15 @@ def run_net():
                 #                    cmax=255.).save(os.path.join(out_dir, os.path.basename(file_name[:-4])))
                 # print("Saved File: {}".format(os.path.join(out_dir, os.path.basename(file_name[:-4]))))
 
-
         coord.request_stop()
         coord.join(threads)
 
+
 def create_cost_matrix(num_cells_prev, lables_prev, stats_prec, centroids_prex, num_cells, lables, stats, centroids):
     pass
-if __name__ == '__main__':
 
+
+if __name__ == '__main__':
     params = ParamsEvalBiGRU()
     mesh_x, mesh_y = np.meshgrid(np.arange(params.image_size[1]), np.arange(params.image_size[0]))
     run_net()
-
-
