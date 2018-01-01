@@ -76,8 +76,6 @@ def run_net():
                 for state_ph, last_state in zip(net_fw.states[0], states_fw):
                     feed_dict[state_ph] = last_state
 
-                    print(last_state.min(), last_state.max())
-
                 for state_ph, last_state in zip(net_bw.states_back[0], states_bw):
                     feed_dict[state_ph] = last_state
 
@@ -105,9 +103,9 @@ def run_net():
                 coord.request_stop()
                 coord.join(threads)
                 loop = False
-                isbi_out_dict = {}
+
         if not params.dry_run:
-            out_dir = params.experiment_out_dir
+
             max_id = 0
             base_out_fname = os.path.join(params.experiment_isbi_out, 'man_seg{time:03d}.tif')
             for t, file_name in enumerate(all_filenames):
@@ -146,12 +144,12 @@ def run_net():
                             unmatched_indexes.remove(p)
                             if candidate not in continued_ids:
                                 # Keep score of matched_indexes labels in order to know which tracks to stop
-                                continued_ids.append[candidate]
+                                continued_ids.append(candidate)
                                 split_dict[candidate] = [p]  # Keep for mitosis detection
                             else:
                                 # Keep score of matched_indexes labels in order to know which tracks to stop
-                                split_dict[candidate].append[p]
-                                ids_to_split.add[candidate]
+                                split_dict[candidate].append(p)
+                                ids_to_split.add(set(candidate))
                                 continued_ids.remove(candidate)
                             matched_labels[labels == p] = candidate
                             continue
@@ -172,6 +170,7 @@ def run_net():
                     isbi_out_dict[max_id] = [max_id, t, t, 0]
                 out_fname = base_out_fname.format(time=t)
                 cv2.imwrite(filename=out_fname, img=out_labels)
+                print("Saved File: {}".format(out_fname))
 
 
                 labels_prev = out_labels
@@ -181,6 +180,7 @@ def run_net():
             with open(csv_file_name) as f:
                 writer = csv.writer(f, delimiter=' ')
                 writer.writerows(isbi_out_dict.values())
+            print("Saved File: {}".format(csv_file_name))
 
                 # seg_out = (seg_out*255).astype(np.uint8)
                 # scipy.misc.toimage(seg_out, cmin=0.0,
