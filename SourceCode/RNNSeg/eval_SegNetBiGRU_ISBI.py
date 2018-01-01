@@ -124,14 +124,16 @@ def run_net():
 
                     labels_prev = cc_out[1]
                     max_id = num_cells
-                    isbi_out_dict = {n: [n, 0, 0, 0] for n in range(1, 1 + num_cells)}
+                    isbi_out_dict = {n: [n, 0, 0, 0] for n in range(1, num_cells)}
+                    out_fname = base_out_fname.format(time=t)
+                    cv2.imwrite(filename=out_fname, img=labels.astype(np.uint16))
                     continue
-                matched_labels = np.zeros_like(labels)
-                unmatched_indexes = list(range(1, 1 + num_cells))
+                matched_labels = np.zeros_like(labels, dtype=np.uint16)
+                unmatched_indexes = list(range(1,  num_cells))
                 continued_ids = []
                 ids_to_split = set()
                 split_dict = {}
-                for p in np.arange(1, 1 + num_cells):
+                for p in np.arange(1, num_cells):
                     matching_mask = labels_prev[labels == p]
                     matching_candidates = np.unique(matching_mask)
                     for candidate in matching_candidates:
@@ -149,7 +151,7 @@ def run_net():
                             else:
                                 # Keep score of matched_indexes labels in order to know which tracks to stop
                                 split_dict[candidate].append(p)
-                                ids_to_split.add(set(candidate))
+                                ids_to_split.add(candidate)
                                 continued_ids.remove(candidate)
                             matched_labels[labels == p] = candidate
                             continue
@@ -169,7 +171,7 @@ def run_net():
                     out_labels[labels == unmatched] = max_id
                     isbi_out_dict[max_id] = [max_id, t, t, 0]
                 out_fname = base_out_fname.format(time=t)
-                cv2.imwrite(filename=out_fname, img=out_labels)
+                cv2.imwrite(filename=out_fname, img=out_labels.astype(np.uint16))
                 print("Saved File: {}".format(out_fname))
 
 
@@ -177,7 +179,7 @@ def run_net():
 
             csv_file_name = os.path.join(params.experiment_isbi_out, 'man_track.txt')
 
-            with open(csv_file_name) as f:
+            with open(csv_file_name, 'w') as f:
                 writer = csv.writer(f, delimiter=' ')
                 writer.writerows(isbi_out_dict.values())
             print("Saved File: {}".format(csv_file_name))
