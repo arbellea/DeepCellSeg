@@ -552,7 +552,11 @@ class ParamsEvalBiGRU(ParamsBase):
                                                   'fw')
         self.experiment_tmp_bw_dir = os.path.join(self.save_out_dir, self.experiment_name, 'outputs', now_string, 'tmp',
                                                   'bw')
+        self.experiment_isbi_out = os.path.join(self.save_out_dir, self.experiment_name, 'outputs', now_string,'RES')
+
         os.makedirs(self.experiment_out_dir, exist_ok=True)
         os.makedirs(self.experiment_tmp_fw_dir, exist_ok=True)
         os.makedirs(self.experiment_tmp_bw_dir, exist_ok=True)
+        os.makedirs(self.experiment_isbi_out, exist_ok=True)
+
 
