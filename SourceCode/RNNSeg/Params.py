@@ -520,6 +520,7 @@ class ParamsEvalBiGRU(ParamsBase):
     save_out_dir = ROOT_SAVE_DIR
 
     # Hardware
+    useGPU = True
     gpu_id = 0
 
     # Net Architecture
