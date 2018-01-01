@@ -19,8 +19,8 @@ def run_net():
     # Build Network Graph
     net_fw = BiGRUNetwork()
     net_bw = BiGRUNetwork()
-
-    with tf.device('/gpu:0'):
+    device = '/gpu:0' if params.useGPU else '/cpu:0'
+    with tf.device(device):
         with tf.name_scope('run_tower'):
             image_seq_norm_fw = [tf.div(tf.subtract(im, params.norm),
                                         params.norm) for im in image_seq_fw]
