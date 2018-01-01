@@ -262,7 +262,7 @@ class BasicConvGRUCell(ConvRNNCell):
 
             concat = tf.nn.sigmoid(_conv_linear([inputs, h], self.filter_size, self.num_features * 2, True,
                                   data_format=self._data_format, scope='gates'))
-            # i = input_gate, j = new_input, f = forget_gate, o = output_gate
+
             z, r = tf.split(axis=channel_axis, num_or_size_splits=2, value=concat)
             i = tf.nn.tanh(_conv_linear([inputs, tf.multiply(r, h)], self.filter_size, self.num_features, True,
                                         data_format=self._data_format, scope='input'))
