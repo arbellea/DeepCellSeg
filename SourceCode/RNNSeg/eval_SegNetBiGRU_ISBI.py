@@ -1,6 +1,6 @@
 import os
 import time
-
+import csv
 import cv2
 import numpy as np
 import tensorflow as tf
@@ -15,7 +15,6 @@ def run_net():
 
     with tf.name_scope('Data'):
         image_seq_fw, filename_seq_fw, image_seq_bw, filename_seq_bw = data_provider.get_sequence(params.seq_length)
-    image_seq_fw_bw = [tf.concat([fw, bw], axis=0) for fw, bw in zip(image_seq_fw, image_seq_bw[::-1])]
     filename_seq_bw = filename_seq_bw[::-1]
     # Build Network Graph
     net_fw = BiGRUNetwork()
@@ -106,34 +105,83 @@ def run_net():
                 coord.request_stop()
                 coord.join(threads)
                 loop = False
+                isbi_out_dict = {}
         if not params.dry_run:
             out_dir = params.experiment_out_dir
+            max_id = 0
+            base_out_fname = os.path.join(params.experiment_isbi_out, 'man_seg{time:03d}.tif')
             for t, file_name in enumerate(all_filenames):
                 fw_logits = np.load(os.path.join(params.experiment_tmp_fw_dir, file_name))
                 bw_logits = np.load(os.path.join(params.experiment_tmp_bw_dir, file_name))
                 feed_dict = {bw_ph: bw_logits, fw_ph: fw_logits}
                 seg_out = sess.run(final_out, feed_dict)
-                seg_cell = np.argmax(seg_out, axis=2) == 1
-                cc_out = cv2.connectedComponentsWithStats(seg_cell, 8, cv2.CV_32S)
+                seg_cell = (seg_out[:, :, 1] > 0.7).astype(
+                    np.float32)  # (np.argmax(seg_out, axis=2) == 1).astype(np.float16)
+                cc_out = cv2.connectedComponentsWithStats(seg_cell.astype(np.uint8), 8, cv2.CV_32S)
                 num_cells = cc_out[0]
                 labels = cc_out[1]
                 stats = cc_out[2]
-                centroids = cc_out[3]
+
                 if t == 0:
-                    num_cells_prev = cc_out[0]
+
                     labels_prev = cc_out[1]
-                    stats_prev = cc_out[2]
-                    centroids_prev = cc_out[3]
+                    max_id = num_cells
+                    isbi_out_dict = {n: [n, 0, 0, 0] for n in range(1, 1 + num_cells)}
                     continue
+                matched_labels = np.zeros_like(labels)
+                unmatched_indexes = list(range(1, 1 + num_cells))
+                continued_ids = []
+                ids_to_split = set()
+                split_dict = {}
+                for p in np.arange(1, 1 + num_cells):
+                    matching_mask = labels_prev[labels == p]
+                    matching_candidates = np.unique(matching_mask)
+                    for candidate in matching_candidates:
+                        if candidate == 0:
+                            continue
+                        intersection = np.count_nonzero(matching_mask.flatten() == candidate)
+                        area = stats[p, cv2.CC_STAT_AREA].astype(np.float32)
+                        if intersection / area > 0.5:
+                            # Keep score of matched_indexes labels in order to know which are new cells
+                            unmatched_indexes.remove(p)
+                            if candidate not in continued_ids:
+                                # Keep score of matched_indexes labels in order to know which tracks to stop
+                                continued_ids.append[candidate]
+                                split_dict[candidate] = [p]  # Keep for mitosis detection
+                            else:
+                                # Keep score of matched_indexes labels in order to know which tracks to stop
+                                split_dict[candidate].append[p]
+                                ids_to_split.add[candidate]
+                                continued_ids.remove(candidate)
+                            matched_labels[labels == p] = candidate
+                            continue
+                for cont_id in continued_ids:
+                    isbi_out_dict[cont_id][2] += 1
 
-                num_cells_prev = cc_out[0]
-                labels_prev = cc_out[1]
-                stats_prev = cc_out[2]
-                centroids_prev = cc_out[3]
+                out_labels = matched_labels.copy()
+                for parent_id, idxs in split_dict.items():
+                    if len(idxs) > 1:
+                        for idx in idxs:
+                            max_id += 1
+                            out_labels[labels == idx] = max_id
+                            isbi_out_dict[max_id] = [max_id, t, t, parent_id]
+
+                for unmatched in unmatched_indexes:
+                    max_id += 1
+                    out_labels[labels == unmatched] = max_id
+                    isbi_out_dict[max_id] = [max_id, t, t, 0]
+                out_fname = base_out_fname.format(time=t)
+                cv2.imwrite(filename=out_fname, img=out_labels)
 
 
+                labels_prev = out_labels
 
-                #
+            csv_file_name = os.path.join(params.experiment_isbi_out, 'man_track.txt')
+
+            with open(csv_file_name) as f:
+                writer = csv.writer(f, delimiter=' ')
+                writer.writerows(isbi_out_dict.values())
+
                 # seg_out = (seg_out*255).astype(np.uint8)
                 # scipy.misc.toimage(seg_out, cmin=0.0,
                 #                    cmax=255.).save(os.path.join(out_dir, os.path.basename(file_name[:-4])))
