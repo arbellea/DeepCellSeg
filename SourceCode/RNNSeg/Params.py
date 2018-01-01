@@ -235,28 +235,28 @@ class ParamsBiGRU(ParamsBase):
     # Data and Data Provider
     root_data_dir = ROOT_DATA_DIR
     data_provider_class = DataHandeling.CSVSegReaderRandomLSTM
-    # one_seg = False
-    # data_base_folder = os.path.join(ROOT_DATA_DIR, 'ISBI-Fluo-N2DH-SIM+-01/')
-    # image_size = (690, 628)
-    # norm = 2 ** 9
+    one_seg = False
+    data_base_folder = os.path.join(ROOT_DATA_DIR, 'ISBI-Fluo-N2DH-SIM+-01/')
+    image_size = (690, 628)
+    norm = 2 ** 9
     # data_base_folder = os.path.join(ROOT_DATA_DIR, 'ISBI-Fluo-N2DH-SIM+-02/')
     # image_size = (773, 739)
 
-    # train_csv_file = 'train_lstm.csv'
-    # val_csv_file = 'val_lstm.csv'
-    one_seg = True
-    data_base_folder = os.path.join(ROOT_DATA_DIR, 'ISBI-Fluo-C2DL-MSC-01/')
-    image_size = (832, 992)
-    norm = 2**15
+    train_csv_file = 'train_lstm.csv'
+    val_csv_file = 'val_lstm.csv'
+    # one_seg = True
+    # data_base_folder = os.path.join(ROOT_DATA_DIR, 'ISBI-Fluo-C2DL-MSC-01/')
+    # image_size = (832, 992)
+    # norm = 2**15
     # data_base_folder = os.path.join(ROOT_DATA_DIR, 'ISBI-Fluo-C2DL-MSC-02/')
     # image_size = (782, 1200)
     # norm = 2**15
-    train_csv_file = 'train_Bilstm.csv'
-    val_csv_file = 'val_Bilstm.csv'
+    # train_csv_file = 'train_Bilstm.csv'
+    # val_csv_file = 'val_Bilstm.csv'
     # train_csv_file = 'train_lstm.csv'
     # val_csv_file = 'val_lstm.csv'
     train_crop_size = (128, 128)
-    crops_per_image = 10
+    crops_per_image = 1
     # train_crop_size = (832, 992)
     # crops_per_image = 1
 
@@ -281,7 +281,7 @@ class ParamsBiGRU(ParamsBase):
 
     # Loading Checkpoints
     load_checkpoint = True
-    load_checkpoint_path = '/newdisk/arbellea/DeepCellSegOut/BiGRU_Seg/2017-11-08_141326/model_1468.ckpt'
+    load_checkpoint_path = '/newdisk/arbellea/DeepCellSegOut/BiGRU_Seg/2017-11-08_144653/model_100000.ckpt'
     dry_run = False
     # Saving Checkpoints
     experiment_name = 'BiGRU_Seg'
@@ -487,16 +487,16 @@ class ParamsEvalBiGRU(ParamsBase):
     # Data and Data Provider
     root_data_dir = ROOT_DATA_DIR
     data_provider_class = DataHandeling.CSVSegReaderEvalBiLSTM
-    # data_base_folder = os.path.join(ROOT_DATA_DIR, 'ISBI-Fluo-N2DH-SIM+-01/')
-    # image_size = (718, 660)
+    data_base_folder = os.path.join(ROOT_DATA_DIR, 'ISBI-Fluo-N2DH-SIM+-01/')
+    image_size = (718, 660)
     # data_base_folder = os.path.join(ROOT_DATA_DIR, 'ISBI-Fluo-N2DH-SIM+-02/')
     # image_size = (790, 664)
-    # norm = 2**9
-    data_base_folder = os.path.join(ROOT_DATA_DIR, 'ISBI-Fluo-C2DL-MSC-01/')
-    image_size = (832, 992)
+    norm = 2**9
+    # data_base_folder = os.path.join(ROOT_DATA_DIR, 'ISBI-Fluo-C2DL-MSC-01/')
+    # image_size = (832, 992)
     # data_base_folder = os.path.join(ROOT_DATA_DIR, 'ISBI-Fluo-C2DL-MSC-02/')
     # image_size = (782, 1200)
-    norm = 2**15
+    # norm = 2**15
 
     csv_file = 'test_lstm.csv'
     # csv_file = 'test_train_lstm.csv'
@@ -510,17 +510,17 @@ class ParamsEvalBiGRU(ParamsBase):
 
     # Loading Checkpoints
     load_checkpoint = True
-    # load_checkpoint_path = '/newdisk/arbellea/DeepCellSegOut/BiGRU_Seg/2017-11-08_144653/model_210000.ckpt' #SIM-01
+    load_checkpoint_path = '/newdisk/arbellea/DeepCellSegOut/BiGRU_Seg/2017-11-08_144653/model_210000.ckpt' #SIM-01
     # load_checkpoint_path = '/newdisk/arbellea/DeepCellSegOut/BiGRU_Seg/2017-11-08_144633/model_160000.ckpt' #SIM-02
     # load_checkpoint_path = '/newdisk/arbellea/DeepCellSegOut/BiGRU_Seg/2017-11-08_145948/model_190000.ckpt' #MSC-02
-    load_checkpoint_path = '/newdisk/arbellea/DeepCellSegOut/BiGRU_Seg/2017-11-08_150020/model_250000.ckpt' #MSC-01
+    # load_checkpoint_path = '/newdisk/arbellea/DeepCellSegOut/BiGRU_Seg/2017-11-08_150020/model_250000.ckpt' #MSC-01
     # Save Outputs
     dry_run = False
     experiment_name = 'BiGRU_Seg'
     save_out_dir = ROOT_SAVE_DIR
 
     # Hardware
-    gpu_id = 2
+    gpu_id = 0
 
     # Net Architecture
     net_params = {
@@ -545,7 +545,7 @@ class ParamsEvalBiGRU(ParamsBase):
                                                       data_format=self.data_format,
                                                       )
 
-        os.environ['CUDA_VISIBLE_DEVICES'] = str(self.gpu_id)
+        # os.environ['CUDA_VISIBLE_DEVICES'] = str(self.gpu_id)
         now_string = datetime.now().strftime('%Y-%m-%d_%H%M%S')
         self.experiment_out_dir = os.path.join(self.save_out_dir, self.experiment_name, 'outputs', now_string)
         self.experiment_tmp_fw_dir = os.path.join(self.save_out_dir, self.experiment_name, 'outputs', now_string,'tmp',
