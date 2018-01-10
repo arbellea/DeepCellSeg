@@ -1,6 +1,7 @@
 import DataHandeling
 import os
 from datetime import datetime
+
 ROOT_SAVE_DIR = '/newdisk/arbellea/DeepCellSegOut'
 ROOT_DATA_DIR = '/HOME/Data/'
 
@@ -71,17 +72,17 @@ class ParamsLSTM(ParamsBase):
 
     # Net Architecture
     net_params = {
-                'conv_kxy': 3,
-                'kout1': 32,
-                'kout2': 64,
-                'kout3': 128,
-                'kout4': 256,
-                'lstm_kxy': [7, 7],
-                'lstm_kout1': 32,
-                'lstm_kout2': 64,
-                'lstm_kout3': 128,
-                'lstm_kout4': 256,
-}
+        'conv_kxy': 3,
+        'kout1': 32,
+        'kout2': 64,
+        'kout3': 128,
+        'kout4': 256,
+        'lstm_kxy': [7, 7],
+        'lstm_kout1': 32,
+        'lstm_kout2': 64,
+        'lstm_kout3': 128,
+        'lstm_kout4': 256,
+    }
 
     def __init__(self):
         self.train_data_provider = self.data_provider_class(filenames=[self.train_csv_file],
@@ -133,7 +134,7 @@ class ParamsBiLSTM(ParamsBase):
     one_seg = True
     data_base_folder = os.path.join(ROOT_DATA_DIR, 'ISBI-Fluo-C2DL-MSC-01/')
     image_size = (832, 992)
-    norm = 2**15
+    norm = 2 ** 15
     train_csv_file = 'train_Bilstm.csv'
     val_csv_file = 'val_Bilstm.csv'
     # train_csv_file = 'train_lstm.csv'
@@ -183,17 +184,17 @@ class ParamsBiLSTM(ParamsBase):
 
     # Net Architecture
     net_params = {
-                'conv_kxy': 3,
-                'kout1': 32,
-                'kout2': 64,
-                'kout3': 128,
-                'kout4': 256,
-                'lstm_kxy': [7, 7],
-                'lstm_kout1': 32,
-                'lstm_kout2': 64,
-                'lstm_kout3': 128,
-                'lstm_kout4': 256,
-}
+        'conv_kxy': 3,
+        'kout1': 32,
+        'kout2': 64,
+        'kout3': 128,
+        'kout4': 256,
+        'lstm_kxy': [7, 7],
+        'lstm_kout1': 32,
+        'lstm_kout2': 64,
+        'lstm_kout3': 128,
+        'lstm_kout4': 256,
+    }
 
     def __init__(self):
         self.train_data_provider = self.data_provider_class(filenames=[self.train_csv_file],
@@ -300,17 +301,17 @@ class ParamsBiGRU(ParamsBase):
 
     # Net Architecture
     net_params = {
-                'conv_kxy': 3,
-                'kout1': 32,
-                'kout2': 64,
-                'kout3': 128,
-                'kout4': 256,
-                'lstm_kxy': [7, 7],
-                'lstm_kout1': 32,
-                'lstm_kout2': 64,
-                'lstm_kout3': 128,
-                'lstm_kout4': 256,
-}
+        'conv_kxy': 3,
+        'kout1': 32,
+        'kout2': 64,
+        'kout3': 128,
+        'kout4': 256,
+        'lstm_kxy': [7, 7],
+        'lstm_kout1': 32,
+        'lstm_kout2': 64,
+        'lstm_kout3': 128,
+        'lstm_kout4': 256,
+    }
 
     def __init__(self):
         self.train_data_provider = self.data_provider_class(filenames=[self.train_csv_file],
@@ -356,7 +357,7 @@ class ParamsEvalLSTM(ParamsBase):
     # image_size = (718, 660)
     data_base_folder = os.path.join(ROOT_DATA_DIR, 'ISBI-Fluo-N2DH-SIM+-02/')
     image_size = (790, 664)
-    norm = 2**9
+    norm = 2 ** 9
     # data_base_folder = os.path.join(ROOT_DATA_DIR, 'ISBI-Fluo-C2DL-MSC-01/')
     # image_size = (832, 992)
     # norm = 2**15
@@ -386,16 +387,16 @@ class ParamsEvalLSTM(ParamsBase):
 
     # Net Architecture
     net_params = {
-                'conv_kxy': 3,
-                'kout1': 32,
-                'kout2': 64,
-                'kout3': 128,
-                'kout4': 256,
-                'lstm_kxy': [7, 7],
-                'lstm_kout1': 32,
-                'lstm_kout2': 64,
-                'lstm_kout3': 128,
-                'lstm_kout4': 256
+        'conv_kxy': 3,
+        'kout1': 32,
+        'kout2': 64,
+        'kout3': 128,
+        'kout4': 256,
+        'lstm_kxy': [7, 7],
+        'lstm_kout1': 32,
+        'lstm_kout2': 64,
+        'lstm_kout3': 128,
+        'lstm_kout4': 256
     }
 
     def __init__(self):
@@ -424,7 +425,7 @@ class ParamsEvalBiLSTM(ParamsBase):
     # norm = 2**9
     data_base_folder = os.path.join(ROOT_DATA_DIR, 'ISBI-Fluo-C2DL-MSC-01/')
     image_size = (832, 992)
-    norm = 2**15
+    norm = 2 ** 15
 
     csv_file = 'test_lstm.csv'
     # csv_file = 'test_train_lstm.csv'
@@ -450,16 +451,16 @@ class ParamsEvalBiLSTM(ParamsBase):
 
     # Net Architecture
     net_params = {
-                'conv_kxy': 3,
-                'kout1': 32,
-                'kout2': 64,
-                'kout3': 128,
-                'kout4': 256,
-                'lstm_kxy': [7, 7],
-                'lstm_kout1': 32,
-                'lstm_kout2': 64,
-                'lstm_kout3': 128,
-                'lstm_kout4': 256
+        'conv_kxy': 3,
+        'kout1': 32,
+        'kout2': 64,
+        'kout3': 128,
+        'kout4': 256,
+        'lstm_kxy': [7, 7],
+        'lstm_kout1': 32,
+        'lstm_kout2': 64,
+        'lstm_kout3': 128,
+        'lstm_kout4': 256
     }
 
     def __init__(self):
@@ -474,7 +475,7 @@ class ParamsEvalBiLSTM(ParamsBase):
         os.environ['CUDA_VISIBLE_DEVICES'] = str(self.gpu_id)
         now_string = datetime.now().strftime('%Y-%m-%d_%H%M%S')
         self.experiment_out_dir = os.path.join(self.save_out_dir, self.experiment_name, 'outputs', now_string)
-        self.experiment_tmp_fw_dir = os.path.join(self.save_out_dir, self.experiment_name, 'outputs', now_string,'tmp',
+        self.experiment_tmp_fw_dir = os.path.join(self.save_out_dir, self.experiment_name, 'outputs', now_string, 'tmp',
                                                   'fw')
         self.experiment_tmp_bw_dir = os.path.join(self.save_out_dir, self.experiment_name, 'outputs', now_string, 'tmp',
                                                   'bw')
@@ -491,7 +492,7 @@ class ParamsEvalBiGRU(ParamsBase):
     image_size = (718, 660)
     # data_base_folder = os.path.join(ROOT_DATA_DIR, 'ISBI-Fluo-N2DH-SIM+-02/')
     # image_size = (790, 664)
-    norm = 2**9
+    norm = 2 ** 9
     # data_base_folder = os.path.join(ROOT_DATA_DIR, 'ISBI-Fluo-C2DL-MSC-01/')
     # image_size = (832, 992)
     # data_base_folder = os.path.join(ROOT_DATA_DIR, 'ISBI-Fluo-C2DL-MSC-02/')
@@ -510,7 +511,7 @@ class ParamsEvalBiGRU(ParamsBase):
 
     # Loading Checkpoints
     load_checkpoint = True
-    load_checkpoint_path = '/newdisk/arbellea/DeepCellSegOut/BiGRU_Seg/2017-11-08_144653/model_210000.ckpt' #SIM-01
+    load_checkpoint_path = '/newdisk/arbellea/DeepCellSegOut/BiGRU_Seg/2017-11-08_144653/model_210000.ckpt'  # SIM-01
     # load_checkpoint_path = '/newdisk/arbellea/DeepCellSegOut/BiGRU_Seg/2017-11-08_144633/model_160000.ckpt' #SIM-02
     # load_checkpoint_path = '/newdisk/arbellea/DeepCellSegOut/BiGRU_Seg/2017-11-08_145948/model_190000.ckpt' #MSC-02
     # load_checkpoint_path = '/newdisk/arbellea/DeepCellSegOut/BiGRU_Seg/2017-11-08_150020/model_250000.ckpt' #MSC-01
@@ -518,6 +519,7 @@ class ParamsEvalBiGRU(ParamsBase):
     dry_run = False
     experiment_name = 'BiGRU_Seg'
     save_out_dir = ROOT_SAVE_DIR
+    final_out_dir = None
 
     # Hardware
     useGPU = True
@@ -525,19 +527,27 @@ class ParamsEvalBiGRU(ParamsBase):
 
     # Net Architecture
     net_params = {
-                'conv_kxy': 3,
-                'kout1': 32,
-                'kout2': 64,
-                'kout3': 128,
-                'kout4': 256,
-                'lstm_kxy': [7, 7],
-                'lstm_kout1': 32,
-                'lstm_kout2': 64,
-                'lstm_kout3': 128,
-                'lstm_kout4': 256
+        'conv_kxy': 3,
+        'kout1': 32,
+        'kout2': 64,
+        'kout3': 128,
+        'kout4': 256,
+        'lstm_kxy': [7, 7],
+        'lstm_kout1': 32,
+        'lstm_kout2': 64,
+        'lstm_kout3': 128,
+        'lstm_kout4': 256
     }
 
     def __init__(self):
+
+        self._data_preps_()
+
+    def _override_params_(self, **kwargs):
+        for key, val in kwargs:
+            setattr(self, key, val)
+
+    def _data_preps_(self):
         self.data_provider = self.data_provider_class(filenames=[self.csv_file],
                                                       base_folder=self.data_base_folder,
                                                       image_size=self.image_size,
@@ -549,11 +559,16 @@ class ParamsEvalBiGRU(ParamsBase):
         # os.environ['CUDA_VISIBLE_DEVICES'] = str(self.gpu_id)
         now_string = datetime.now().strftime('%Y-%m-%d_%H%M%S')
         self.experiment_out_dir = os.path.join(self.save_out_dir, self.experiment_name, 'outputs', now_string)
-        self.experiment_tmp_fw_dir = os.path.join(self.save_out_dir, self.experiment_name, 'outputs', now_string,'tmp',
+        self.experiment_tmp_fw_dir = os.path.join(self.save_out_dir, self.experiment_name, 'outputs', now_string, 'tmp',
                                                   'fw')
         self.experiment_tmp_bw_dir = os.path.join(self.save_out_dir, self.experiment_name, 'outputs', now_string, 'tmp',
                                                   'bw')
-        self.experiment_isbi_out = os.path.join(self.save_out_dir, self.experiment_name, 'outputs', now_string,'RES')
+        if self.final_out_dir:
+            self.experiment_isbi_out = self.final_out_dir
+        else:
+
+            self.experiment_isbi_out = os.path.join(self.save_out_dir, self.experiment_name, 'outputs', now_string,
+                                                    'RES')
 
         os.makedirs(self.experiment_out_dir, exist_ok=True)
         os.makedirs(self.experiment_tmp_fw_dir, exist_ok=True)
@@ -561,3 +576,94 @@ class ParamsEvalBiGRU(ParamsBase):
         os.makedirs(self.experiment_isbi_out, exist_ok=True)
 
 
+class ParamsEvalIsbiBiGRU(ParamsBase):
+    # Data and Data Provider
+
+    root_data_dir = ROOT_DATA_DIR
+    data_provider_class = DataHandeling.CSVSegReaderEvalBiLSTM
+    data_base_folder = os.path.join(ROOT_DATA_DIR, 'ISBI-Fluo-N2DH-SIM+-01/')
+    image_size = (718, 660)
+    # data_base_folder = os.path.join(ROOT_DATA_DIR, 'ISBI-Fluo-N2DH-SIM+-02/')
+    # image_size = (790, 664)
+    norm = 2 ** 9
+    # data_base_folder = os.path.join(ROOT_DATA_DIR, 'ISBI-Fluo-C2DL-MSC-01/')
+    # image_size = (832, 992)
+    # data_base_folder = os.path.join(ROOT_DATA_DIR, 'ISBI-Fluo-C2DL-MSC-02/')
+    # image_size = (782, 1200)
+    # norm = 2**15
+
+    csv_file = 'test_lstm.csv'
+    # csv_file = 'test_train_lstm.csv'
+
+    num_data_threads = 1
+    q_capacity = 1000
+    data_format = 'NCHW'
+
+    # Eval Regime
+    seq_length = 1
+
+    # Loading Checkpoints
+    load_checkpoint = True
+    load_checkpoint_path = '/newdisk/arbellea/DeepCellSegOut/BiGRU_Seg/2017-11-08_144653/model_210000.ckpt'  # SIM-01
+    # load_checkpoint_path = '/newdisk/arbellea/DeepCellSegOut/BiGRU_Seg/2017-11-08_144633/model_160000.ckpt' #SIM-02
+    # load_checkpoint_path = '/newdisk/arbellea/DeepCellSegOut/BiGRU_Seg/2017-11-08_145948/model_190000.ckpt' #MSC-02
+    # load_checkpoint_path = '/newdisk/arbellea/DeepCellSegOut/BiGRU_Seg/2017-11-08_150020/model_250000.ckpt' #MSC-01
+    # Save Outputs
+    dry_run = False
+    experiment_name = 'BiGRU_Seg'
+    save_out_dir = ROOT_SAVE_DIR
+    final_out_dir = None
+
+    # Hardware
+    useGPU = True
+    gpu_id = 0
+
+    # Net Architecture
+    net_params = {
+        'conv_kxy': 3,
+        'kout1': 32,
+        'kout2': 64,
+        'kout3': 128,
+        'kout4': 256,
+        'lstm_kxy': [7, 7],
+        'lstm_kout1': 32,
+        'lstm_kout2': 64,
+        'lstm_kout3': 128,
+        'lstm_kout4': 256
+    }
+
+    def __init__(self):
+
+        self._data_preps_()
+
+    def _override_params_(self, **kwargs):
+        for key, val in kwargs:
+            setattr(self, key, val)
+
+    def _data_preps_(self):
+        self.data_provider = self.data_provider_class(filenames=[self.csv_file],
+                                                      base_folder=self.data_base_folder,
+                                                      image_size=self.image_size,
+                                                      num_threads=self.num_data_threads,
+                                                      capacity=self.q_capacity,
+                                                      data_format=self.data_format,
+                                                      )
+
+        # os.environ['CUDA_VISIBLE_DEVICES'] = str(self.gpu_id)
+        now_string = datetime.now().strftime('%Y-%m-%d_%H%M%S')
+        self.experiment_out_dir = os.path.join(self.save_out_dir, self.experiment_name, 'outputs', now_string)
+        self.experiment_tmp_fw_dir = os.path.join(self.save_out_dir, self.experiment_name, 'outputs', now_string, 'tmp',
+                                                  'fw')
+        self.experiment_tmp_bw_dir = os.path.join(self.save_out_dir, self.experiment_name, 'outputs', now_string, 'tmp',
+                                                  'bw')
+        if self.final_out_dir:
+            self.experiment_isbi_out = self.final_out_dir
+        else:
+
+            self.experiment_isbi_out = os.path.join(self.save_out_dir, self.experiment_name, 'outputs', now_string,
+                                                    'RES')
+
+        os.makedirs(self.experiment_out_dir, exist_ok=True)
+        os.makedirs(self.experiment_tmp_fw_dir, exist_ok=True)
+        os.makedirs(self.experiment_tmp_bw_dir, exist_ok=True)
+        os.makedirs(self.experiment_isbi_out, exist_ok=True)

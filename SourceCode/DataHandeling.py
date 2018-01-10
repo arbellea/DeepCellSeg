@@ -1,6 +1,9 @@
 import csv
 import tensorflow as tf
 import os
+import glob
+import cv2
+
 # import numpy as np
 # import matplotlib.pyplot as plt
 # import matplotlib.image as mpimage
@@ -11,7 +14,6 @@ __author__ = 'assafarbelle'
 
 
 class CSVSegReader(object):
-
     def __init__(self, filenames, base_folder='.', image_size=(64, 64, 1), num_threads=4,
                  capacity=20, min_after_dequeue=10, random=True, data_format='NCHW'):
         """
@@ -42,11 +44,11 @@ class CSVSegReader(object):
     def _get_image(self):
 
         _, records = self.reader.read(self.input_queue)
-        file_names = tf.decode_csv(records, [tf.constant([],  tf.string), tf.constant([], tf.string)], field_delim=None,
+        file_names = tf.decode_csv(records, [tf.constant([], tf.string), tf.constant([], tf.string)], field_delim=None,
                                    name=None)
 
-        im_raw = tf.read_file(self.base_folder+file_names[0])
-        seg_raw = tf.read_file(self.base_folder+file_names[1])
+        im_raw = tf.read_file(self.base_folder + file_names[0])
+        seg_raw = tf.read_file(self.base_folder + file_names[1])
         image = tf.reshape(tf.cast(tf.image.decode_png(im_raw, channels=1, dtype=tf.uint16), tf.float32),
                            self.image_size, name='input_image')
         seg = tf.reshape(tf.cast(tf.image.decode_png(seg_raw, channels=1, dtype=tf.uint8), tf.float32),
@@ -78,7 +80,6 @@ class CSVSegReader(object):
 
 
 class CSVSegReaderRandom(object):
-
     def __init__(self, filenames, base_folder='.', image_size=(), crop_size=(64, 64), num_threads=4,
                  capacity=20, min_after_dequeue=10, data_format='NCHW',
                  random_rotate=tf.random_uniform([], minval=0, maxval=2, dtype=tf.int32)):
@@ -112,23 +113,22 @@ class CSVSegReaderRandom(object):
         file_names = tf.decode_csv(records, [tf.constant([], tf.string), tf.constant([], tf.string)],
                                    field_delim=None, name=None)
 
-        im_raw = tf.read_file(self.base_folder+file_names[0])
-        seg_raw = tf.read_file(self.base_folder+file_names[1])
+        im_raw = tf.read_file(self.base_folder + file_names[0])
+        seg_raw = tf.read_file(self.base_folder + file_names[1])
         image = tf.reshape(
-                            tf.cast(tf.image.decode_png(
-                                                    im_raw,
-                                                    channels=1, dtype=tf.uint16),
-                                    tf.float32), self.image_size, name='input_image')
+            tf.cast(tf.image.decode_png(
+                im_raw,
+                channels=1, dtype=tf.uint16),
+                tf.float32), self.image_size, name='input_image')
         seg = tf.reshape(
-                        tf.cast(tf.image.decode_png(
-                                                    seg_raw,
-                                                    channels=1, dtype=tf.uint8),
-                                tf.float32), self.image_size, name='input_seg')
+            tf.cast(tf.image.decode_png(
+                seg_raw,
+                channels=1, dtype=tf.uint8),
+                tf.float32), self.image_size, name='input_seg')
 
         return image, seg, file_names[0]
 
     def get_batch(self, batch_size=1):
-
         self.batch_size = batch_size
 
         image, seg, file_name = self._get_image()
@@ -157,7 +157,6 @@ class CSVSegReaderRandom(object):
 
 
 class CSVSegReaderRandom2(object):
-
     def __init__(self, filenames, base_folder='.', image_size=(), crop_size=(128, 128), crops_per_image=50,
                  num_threads=4, capacity=20, min_after_dequeue=10, num_examples=None, data_format='NCHW',
                  random_rotate=tf.random_uniform([], minval=0, maxval=2, dtype=tf.int32)):
@@ -179,7 +178,7 @@ class CSVSegReaderRandom2(object):
             with open(filename, 'r') as csv_file:
                 csv_reader = csv.reader(csv_file, delimiter=',', quotechar='|')
                 for row in csv_reader:
-                    raw_filenames.append(row[0]+':'+row[1])
+                    raw_filenames.append(row[0] + ':' + row[1])
 
         self.partial_frame = 0
 
@@ -214,18 +213,18 @@ class CSVSegReaderRandom2(object):
 
         im_filename = tf.sparse_tensor_to_dense(tf.string_split(tf.expand_dims(self.raw_queue.dequeue(), 0), ':'), '')
         im_filename.set_shape([1, 2])
-        im_raw = tf.read_file(self.base_folder+im_filename[0][0])
-        seg_raw = tf.read_file(self.base_folder+im_filename[0][1])
+        im_raw = tf.read_file(self.base_folder + im_filename[0][0])
+        seg_raw = tf.read_file(self.base_folder + im_filename[0][1])
 
         image = tf.reshape(tf.cast(tf.image.decode_png(im_raw, channels=1, dtype=tf.uint16), tf.float32),
                            self.image_size, name='input_image')
         seg = tf.reshape(tf.cast(tf.image.decode_png(seg_raw, channels=1, dtype=tf.uint8), tf.float32), self.image_size,
                          name='input_seg')
         if self.partial_frame:
-            crop_y_start = int(((1-self.partial_frame) * self.image_size[0])/2)
-            crop_y_end = int(((1+self.partial_frame) * self.image_size[0])/2)
-            crop_x_start = int(((1-self.partial_frame) * self.image_size[1])/2)
-            crop_x_end = int(((1+self.partial_frame) * self.image_size[1])/2)
+            crop_y_start = int(((1 - self.partial_frame) * self.image_size[0]) / 2)
+            crop_y_end = int(((1 + self.partial_frame) * self.image_size[0]) / 2)
+            crop_x_start = int(((1 - self.partial_frame) * self.image_size[1]) / 2)
+            crop_x_end = int(((1 + self.partial_frame) * self.image_size[1]) / 2)
             image = tf.slice(image, [crop_y_start, crop_x_start, 0], [crop_y_end, crop_x_end, -1])
             seg = tf.slice(seg, [crop_y_start, crop_x_start, 0], [crop_y_end, crop_x_end, -1])
 
@@ -274,7 +273,6 @@ class CSVSegReaderRandom2(object):
 
 
 class CSVSegReader2(object):
-
     def __init__(self, filenames, base_folder='.', image_size=(64, 64, 1), num_threads=4,
                  capacity=20, min_after_dequeue=10, num_examples=None, random=True, data_format='NCHW'):
         """
@@ -296,7 +294,7 @@ class CSVSegReader2(object):
             with open(filename, 'r') as csv_file:
                 csv_reader = csv.reader(csv_file, delimiter=',', quotechar='|')
                 for row in csv_reader:
-                    raw_filenames.append(row[0]+':'+row[1])
+                    raw_filenames.append(row[0] + ':' + row[1])
 
         if not num_examples:
             pass
@@ -326,8 +324,8 @@ class CSVSegReader2(object):
         filename.set_shape([1, 2])
         # seg_filename = self.seg_queue.dequeue()
 
-        im_raw = tf.read_file(self.base_folder+filename[0][0])
-        seg_raw = tf.read_file(self.base_folder+filename[0][1])
+        im_raw = tf.read_file(self.base_folder + filename[0][0])
+        seg_raw = tf.read_file(self.base_folder + filename[0][1])
         image = tf.reshape(tf.cast(tf.image.decode_png(im_raw, channels=1, dtype=tf.uint16), tf.float32),
                            self.image_size, name='input_image')
         seg = tf.reshape(tf.cast(tf.image.decode_png(seg_raw, channels=1, dtype=tf.uint8), tf.float32), self.image_size,
@@ -358,7 +356,6 @@ class CSVSegReader2(object):
 
 
 class CSVSegReaderRandomLSTM(object):
-
     def __init__(self, filenames, base_folder='.', image_size=(), crop_size=(128, 128), crops_per_image=50,
                  num_threads=4, capacity=20, min_after_dequeue=10, num_examples=None, data_format='NCHW', one_seg=False,
                  random_rotate=tf.random_uniform([], minval=0, maxval=2, dtype=tf.int32)):
@@ -377,7 +374,7 @@ class CSVSegReaderRandomLSTM(object):
         raw_filenames = []
 
         for filename in filenames:
-            with open(os.path.join(base_folder,filename), 'r') as csv_file:
+            with open(os.path.join(base_folder, filename), 'r') as csv_file:
                 csv_reader = csv.reader(csv_file, delimiter=',', quotechar='|')
                 for row in csv_reader:
                     raw_filenames.append(row)
@@ -417,20 +414,20 @@ class CSVSegReaderRandomLSTM(object):
         im_list = []
         seg_list = []
         for i in range(0, len(filenames), 2):
-            im_filename, seg_filename = filenames[i], filenames[i+1]
-            im_raw = tf.read_file(self.base_folder+im_filename)
-            seg_raw = tf.read_file(self.base_folder+seg_filename)
+            im_filename, seg_filename = filenames[i], filenames[i + 1]
+            im_raw = tf.read_file(self.base_folder + im_filename)
+            seg_raw = tf.read_file(self.base_folder + seg_filename)
 
-            image_size = self.image_size + (1, )
+            image_size = self.image_size + (1,)
             image = tf.reshape(tf.cast(tf.image.decode_png(im_raw, channels=1, dtype=tf.uint16), tf.float32),
                                image_size)
             seg = tf.reshape(tf.cast(tf.image.decode_png(seg_raw, channels=1, dtype=tf.uint8), tf.float32),
                              image_size)
             if self.partial_frame:
-                crop_y_start = int(((1-self.partial_frame) * image_size[0])/2)
-                crop_y_end = int(((1+self.partial_frame) * image_size[0])/2)
-                crop_x_start = int(((1-self.partial_frame) * image_size[1])/2)
-                crop_x_end = int(((1+self.partial_frame) * image_size[1])/2)
+                crop_y_start = int(((1 - self.partial_frame) * image_size[0]) / 2)
+                crop_y_end = int(((1 + self.partial_frame) * image_size[0]) / 2)
+                crop_x_start = int(((1 - self.partial_frame) * image_size[1]) / 2)
+                crop_x_end = int(((1 + self.partial_frame) * image_size[1]) / 2)
                 image = tf.slice(image, [crop_y_start, crop_x_start, 0], [crop_y_end, crop_x_end, -1])
                 seg = tf.slice(seg, [crop_y_start, crop_x_start, 0], [crop_y_end, crop_x_end, -1])
             im_list.append(image)
@@ -453,9 +450,9 @@ class CSVSegReaderRandomLSTM(object):
             crop_x_end = int(((1 + self.partial_frame) * image_size[1]) / 2)
             seg = tf.slice(seg, [crop_y_start, crop_x_start, 0], [crop_y_end, crop_x_end, -1])
 
-        for i in range(len(filenames)-1):
+        for i in range(len(filenames) - 1):
             im_filename = filenames[i]
-            im_raw = tf.read_file(self.base_folder+im_filename)
+            im_raw = tf.read_file(self.base_folder + im_filename)
             image = tf.reshape(tf.cast(tf.image.decode_png(im_raw, channels=1, dtype=tf.uint16), tf.float32),
                                image_size)
 
@@ -474,13 +471,13 @@ class CSVSegReaderRandomLSTM(object):
             image_list_in, seg_list_in, file_names = self._get_image_sequence()
         seq_length = len(image_list_in)
         seg_length = len(seg_list_in)
-        concat = tf.concat(axis=2, values=(image_list_in+seg_list_in))
+        concat = tf.concat(axis=2, values=(image_list_in + seg_list_in))
         image_seq_list = []
         seg_seq_list = []
         filename_list = []
 
         for _ in range(self.crops_per_image):
-            cropped = tf.random_crop(concat, [self.crop_size[0], self.crop_size[1], seq_length+seg_length])
+            cropped = tf.random_crop(concat, [self.crop_size[0], self.crop_size[1], seq_length + seg_length])
             shape = cropped.get_shape()
             flip_lr = tf.image.random_flip_left_right(cropped)
             flip_ud = tf.image.random_flip_up_down(flip_lr)
@@ -517,8 +514,7 @@ class CSVSegReaderRandomLSTM(object):
 
 
 class CSVSegReaderEvalLSTM(object):
-
-    def __init__(self, filenames, base_folder='.', image_size=(), num_threads=4, capacity=20, min_after_dequeue=10,
+    def __init__(self, filenames, base_folder='.', image_size=(), num_threads=1, capacity=20, min_after_dequeue=10,
                  data_format='NCHW'):
         """
         CSVSegReader is a class that reads csv files containing paths to input image and segmentation image and outputs
@@ -554,9 +550,8 @@ class CSVSegReaderEvalLSTM(object):
                     #     raw_filenames.append(row[0])
                     #     raw_filenames.append(row[0])
 
-
-
-        self.raw_queue = tf.train.string_input_producer(raw_filenames + raw_filenames[::-1] + raw_filenames + raw_filenames[::-1], shuffle=False, num_epochs=1)
+        self.raw_queue = tf.train.string_input_producer(
+            raw_filenames + raw_filenames[::-1] + raw_filenames + raw_filenames[::-1], shuffle=False, num_epochs=1)
         self.image_size = image_size
         self.seq_length = None
         self.num_threads = num_threads
@@ -567,8 +562,8 @@ class CSVSegReaderEvalLSTM(object):
 
     def _get_image(self):
         filename = self.raw_queue.dequeue()
-        im_raw = tf.read_file(self.base_folder+filename)
-        image_size = self.image_size + (1, )
+        im_raw = tf.read_file(self.base_folder + filename)
+        image_size = self.image_size + (1,)
         image = tf.reshape(tf.cast(tf.image.decode_png(im_raw, channels=1, dtype=tf.uint16), tf.float32),
                            image_size)
 
@@ -585,16 +580,13 @@ class CSVSegReaderEvalLSTM(object):
         if self.data_format == 'NCHW':
             image_seq = tf.transpose(image_seq, perm=[0, 3, 1, 2])
 
-
         image_seq_list = tf.split(image_seq, seq_length, axis=0)
-
 
         return image_seq_list, filename_seq
 
 
 class CSVSegReaderEvalBiLSTM(object):
-
-    def __init__(self, filenames, base_folder='.', image_size=(), num_threads=4, capacity=20, min_after_dequeue=10,
+    def __init__(self, filenames, base_folder='.', image_size=(), num_threads=1, capacity=20, min_after_dequeue=10,
                  data_format='NCHW'):
         """
         CSVSegReader is a class that reads csv files containing paths to input image and segmentation image and outputs
@@ -628,9 +620,9 @@ class CSVSegReaderEvalBiLSTM(object):
         self.data_format = data_format
 
     def _get_image(self):
-        image_size = self.image_size + (1, )
+        image_size = self.image_size + (1,)
         filename_fw = self.raw_queue_fw.dequeue()
-        im_raw = tf.read_file(self.base_folder+filename_fw)
+        im_raw = tf.read_file(self.base_folder + filename_fw)
         image_fw = tf.reshape(tf.cast(tf.image.decode_png(im_raw, channels=1, dtype=tf.uint16), tf.float32),
                               image_size)
         filename_bw = self.raw_queue_bw.dequeue()
@@ -661,3 +653,114 @@ class CSVSegReaderEvalBiLSTM(object):
 
         return image_seq_list_fw, filename_seq_fw, image_seq_list_bw, filename_seq_bw
 
+
+class DIRSegReaderEvalBiLSTM(object):
+    def __init__(self, data_dir: str, filename_format='t*.tif', image_size=(0, 0), capacity=20, data_format='NCHW'):
+        """
+        CSVSegReader is a class that reads csv files containing paths to input image and segmentation image and outputs
+        batches of corresponding image inputs and segmentation inputs.
+         The inputs to the class are:
+            :param data_dir: directory including all image files
+            :type data_dir: str
+            :param filename_format: the format of the files in the directory. use * as a wildcard
+            :type filename_format: str
+            :param image_size: a tuple containing the image size in Y and X dimensions
+            :type image_size: Tuple[int,int]
+            :param capacity: capacity of the shuffle queue, the larger capacity results in better mixing
+            :type capacity: int
+            :param data_format: the format of the data, either NHWC (Batch, Height, Width, Channel) of NCHW 
+            :type data_format: str
+            
+        """
+
+        raw_filenames = glob.glob(os.path.join(data_dir, filename_format))
+        raw_filenames.sort()
+
+        self.raw_queue_fw = tf.train.string_input_producer(raw_filenames, shuffle=False, num_epochs=1)
+        self.raw_queue_bw = tf.train.string_input_producer(raw_filenames[::-1], shuffle=False, num_epochs=1)
+        self.image_size = image_size
+        self.seq_length = None
+        self.capacity = capacity
+        self.data_format = data_format
+
+    def _get_image(self):
+        image_size = self.image_size + (1,)
+        filename_fw = self.raw_queue_fw.dequeue()
+        im_raw = tf.read_file(filename_fw)
+        image_fw = tf.reshape(tf.cast(tf.image.decode_png(im_raw, channels=1, dtype=tf.uint16), tf.float32),
+                              image_size)
+        filename_bw = self.raw_queue_bw.dequeue()
+        im_raw = tf.read_file(filename_bw)
+
+        image_bw = tf.reshape(tf.cast(tf.image.decode_png(im_raw, channels=1, dtype=tf.uint16), tf.float32),
+                              image_size)
+
+        return image_fw, filename_fw, image_bw, filename_bw
+
+    def get_sequence(self, seq_length=7):
+        self.seq_length = seq_length
+        image_fw, filename_fw, image_bw, filename_bw = self._get_image()
+
+        (image_seq_fw,
+         filename_seq_fw) = tf.train.batch([image_fw, filename_fw], batch_size=self.seq_length, num_threads=1,
+                                           capacity=self.capacity)
+        (image_seq_bw,
+         filename_seq_bw) = tf.train.batch([image_bw, filename_bw], batch_size=self.seq_length, num_threads=1,
+                                           capacity=self.capacity)
+
+        if self.data_format == 'NCHW':
+            image_seq_fw = tf.transpose(image_seq_fw, perm=[0, 3, 1, 2])
+            image_seq_bw = tf.transpose(image_seq_bw, perm=[0, 3, 1, 2])
+
+        image_seq_list_fw = tf.split(image_seq_fw, seq_length, axis=0)
+        image_seq_list_bw = tf.split(image_seq_bw, seq_length, axis=0)
+
+        return image_seq_list_fw, filename_seq_fw, image_seq_list_bw, filename_seq_bw
+
+
+def tif2png_dir(data_dir: str, out_dir: str, filename_format='t*.tif'):
+    """
+    tif2png_dir is a function that converts a directory of tif files to png files
+     The inputs to the class are:
+        :param data_dir: directory including all image files
+        :type data_dir: str
+        :param out_dir: directory to output
+        :type out_dir: str
+        :param filename_format: the format of the files in the directory. use * as a wildcard
+        :type filename_format: str
+
+    """
+
+    tif_filenames = glob.glob(os.path.join(data_dir, filename_format))
+    tif_filenames.sort()
+    os.makedirs(out_dir, exist_ok=True)
+    for tif_filename in tif_filenames:
+        img = cv2.imread(tif_filename, -1)
+        base_name = os.path.basename(tif_filename)
+        base_name = base_name.replace('.tif', '.png')
+        png_filename = os.path.join(out_dir, base_name)
+        cv2.imwrite(png_filename, img)
+
+
+def create_data_for_lstm(data_dir: str, out_dir: str, filename_format='t*.tif', crop_size=(128, 128), num=10):
+    """
+    
+     The inputs to the class are:
+        :param data_dir: directory including all image files
+        :type data_dir: str
+        :param out_dir: directory to output
+        :type out_dir: str
+        :param filename_format: the format of the files in the directory. use * as a wildcard
+        :type filename_format: str
+
+    """
+
+    tif_filenames = glob.glob(os.path.join(data_dir, filename_format))
+    tif_filenames.sort()
+    os.makedirs(out_dir, exist_ok=True)
+    for tif_filename in tif_filenames:
+        img = cv2.imread(tif_filename, -1)
+        base_name = os.path.basename(tif_filename)
+        base_name = base_name.replace('.tif', '.png')
+        png_filename = os.path.join(out_dir, base_name)
+        cv2.imwrite(png_filename, img)

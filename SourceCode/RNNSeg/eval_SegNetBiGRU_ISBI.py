@@ -4,9 +4,10 @@ import csv
 import cv2
 import numpy as np
 import tensorflow as tf
+import argparse
 
 from RNNSeg.LSTM_Network import BiGRUNetwork
-from RNNSeg.Params import ParamsEvalBiGRU
+from RNNSeg.Isbi_Params import ParamsEvalIsbiBiGRU
 
 
 def run_net():
@@ -107,13 +108,13 @@ def run_net():
         if not params.dry_run:
 
             max_id = 0
-            base_out_fname = os.path.join(params.experiment_isbi_out, 'man_seg{time:03d}.tif')
+            base_out_fname = os.path.join(params.experiment_isbi_out, 'mask{time:03d}.tif')
             for t, file_name in enumerate(all_filenames):
                 fw_logits = np.load(os.path.join(params.experiment_tmp_fw_dir, file_name))
                 bw_logits = np.load(os.path.join(params.experiment_tmp_bw_dir, file_name))
                 feed_dict = {bw_ph: bw_logits, fw_ph: fw_logits}
                 seg_out = sess.run(final_out, feed_dict)
-                seg_cell = (seg_out[:, :, 1] > 0.7).astype(
+                seg_cell = (seg_out[:, :, 1] > 0.3).astype(
                     np.float32)  # (np.argmax(seg_out, axis=2) == 1).astype(np.float16)
                 cc_out = cv2.connectedComponentsWithStats(seg_cell.astype(np.uint8), 8, cv2.CV_32S)
                 num_cells = cc_out[0]
@@ -177,7 +178,7 @@ def run_net():
 
                 labels_prev = out_labels
 
-            csv_file_name = os.path.join(params.experiment_isbi_out, 'man_track.txt')
+            csv_file_name = os.path.join(params.experiment_isbi_out, 'res_track.txt')
 
             with open(csv_file_name, 'w') as f:
                 writer = csv.writer(f, delimiter=' ')
@@ -193,11 +194,21 @@ def run_net():
         coord.join(threads)
 
 
-def create_cost_matrix(num_cells_prev, lables_prev, stats_prec, centroids_prex, num_cells, lables, stats, centroids):
-    pass
-
-
 if __name__ == '__main__':
-    params = ParamsEvalBiGRU()
-    mesh_x, mesh_y = np.meshgrid(np.arange(params.image_size[1]), np.arange(params.image_size[0]))
+    parser = argparse.ArgumentParser(description='Run GAN Segmentation')
+    parser.add_argument('-d', '--data_set', dest='selected_data_set', type=str,
+                        help="ISBI Data Set Name")
+    parser.add_argument('-s', '--sequence', type=int, dest='selected_seq',
+                        help="1 or 2")
+    parser.add_argument('--data_root_dir', dest='data_root_dir', type=str,
+                        help="root directory for data sets")
+    parser.add_argument('-m', '--model_path', dest='load_checkpoint_path', type=str,
+                        help="Path to net model *.ckpt file")
+    parser.add_argument('--output_dir', dest='final_out_dir', type=str,
+                        help="Directory to save final outputs")
+    parser.add_argument('--tmp_output_dir', dest='save_out_dir', type=str,
+                        help="Directory to save temporary outputs")
+    args = parser.parse_args()
+    args_dict = {key: val for key, val in vars(args).items() if val}
+    params = ParamsEvalIsbiBiGRU(args_dict)
     run_net()
