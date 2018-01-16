@@ -11,103 +11,112 @@ class ParamsBase(object):
 
 
 class ParamsLSTM(ParamsBase):
+
+    # Hardware
+    gpu_id = 0
+    profile = False
+
     # Data and Data Provider
     root_data_dir = ROOT_DATA_DIR
-    data_provider_class = DataHandeling.CSVSegReaderRandomLSTM
+    data_provider_class = DataHandeling.CSVSegReaderSequence
     # one_seg = False
-    # data_base_folder = os.path.join(ROOT_DATA_DIR, 'ISBI-Fluo-N2DH-SIM+-01/')
+    data_base_folder = os.path.join(ROOT_DATA_DIR, 'ISBI-Fluo-N2DH-SIM+-02/')
     # image_size = (690, 628)
     one_seg = False
-    norm = 2 ** 9
-    data_base_folder = os.path.join(ROOT_DATA_DIR, 'ISBI-Fluo-N2DH-SIM+-02/')
-    image_size = (773, 739)
+    norm = 2 ** 15
+    val_data_base_folder = os.path.join(ROOT_DATA_DIR, 'ISBI-Fluo-N2DH-SIM+-01/')
+    # image_size = (773, 739)
     # one_seg = True
     # data_base_folder = os.path.join(ROOT_DATA_DIR, 'ISBI-Fluo-C2DL-MSC-01/')
     # image_size = (832, 992)
     # norm = 2**15
-    train_csv_file = 'train_lstm.csv'
-    val_csv_file = 'val_lstm.csv'
-    train_crop_size = (128, 128)
-    crops_per_image = 10
+    train_csv_file = [os.path.join(data_base_folder, 'csv_1.csv')]
+    val_csv_file = [os.path.join(val_data_base_folder, 'csv_1.csv')]
+    train_crop_size = (512, 512)
+    crops_per_image = 5
 
-    num_train_data_threads = 4
-    num_val_data_threads = 1
-    train_q_capacity = 1000
-    val_q_capacity = 1000
-    train_q_min_after_dq = 100
-    val_q_min_after_dq = 100
+    # num_train_data_threads = 4
+    # num_val_data_threads = 1
+    train_q_capacity = 100
+    val_q_capacity = 100
+    # train_q_min_after_dq = 100
+    # val_q_min_after_dq = 100
     data_format = 'NCHW'
     num_train_examples = None
 
     # Training Regime
-    batch_size = 20
+    batch_size = 3
+    unroll_len = 5
     num_iterations = 1000000
     learning_rate = 0.001
     skip_t_loss = [0, 1]
     class_weights = [0.2, 0.2, 0.6]
 
     # Validation
-    validation_interval = 10
+    validation_interval = 50
 
     # Loading Checkpoints
-    load_checkpoint = True
-    # load_checkpoint_path = '/newdisk/arbellea/DeepCellSegOut/LSTM_Seg/2017-10-25_230737/model_40000.ckpt'
-    load_checkpoint_path = '/newdisk/arbellea/DeepCellSegOut/LSTM_Seg/2017-11-04_212207/model_140000.ckpt'
-    # load_checkpoint_path = '/newdisk/arbellea/DeepCellSegOut/LSTM_Seg/2017-10-30_154659/model_60000.ckpt'
+    load_checkpoint = False
+    # load_checkpoint_path = ''
+    # load_checkpoint_path = '/newdisk/arbellea/DeepCellSegOut/LSTM_Seg_seq/2018-01-12_134535/model_10000.ckpt' #SIM01
+    # load_checkpoint_path = '/newdisk/arbellea/DeepCellSegOut/LSTM_Seg_seq/2018-01-12_134608/model_10000.ckpt' #SIM02
     dry_run = False
     # Saving Checkpoints
-    experiment_name = 'LSTM_Seg'
+    experiment_name = 'LSTM_Seg_seq'
     save_checkpoint_dir = ROOT_SAVE_DIR
-    save_checkpoint_iteration = 10000
+    save_checkpoint_iteration = 100
     save_checkpoint_every_N_hours = 3
     save_checkpoint_max_to_keep = 5
 
     # Tensorboard
-    write_to_tb_interval = 10
+    write_to_tb_interval = 50
     save_log_dir = ROOT_SAVE_DIR
 
-    # Hardware
-    gpu_id = 1
-    profile = False
 
     # Net Architecture
+    # net_params = {
+    #     'conv_kxy': 3,
+    #     'kout1': 32,
+    #     'kout2': 64,
+    #     'kout3': 128,
+    #     'kout4': 256,
+    #     'lstm_kxy': [7, 7],
+    #     'lstm_kout1': 32,
+    #     'lstm_kout2': 64,
+    #     'lstm_kout3': 128,
+    #     'lstm_kout4': 256,
+    # }
     net_params = {
         'conv_kxy': 3,
         'kout1': 32,
-        'kout2': 64,
-        'kout3': 128,
-        'kout4': 256,
-        'lstm_kxy': [7, 7],
+        'kout2': 32,
+        'kout3': 64,
+        'kout4': 128,
+        'lstm_kxy': [5, 5],
         'lstm_kout1': 32,
-        'lstm_kout2': 64,
-        'lstm_kout3': 128,
-        'lstm_kout4': 256,
+        'lstm_kout2': 32,
+        'lstm_kout3': 62,
+        'lstm_kout4': 128,
     }
 
     def __init__(self):
-        self.train_data_provider = self.data_provider_class(filenames=[self.train_csv_file],
-                                                            base_folder=self.data_base_folder,
-                                                            image_size=self.image_size,
-                                                            crop_size=self.train_crop_size,
-                                                            crops_per_image=self.crops_per_image,
-                                                            one_seg=self.one_seg,
-                                                            num_threads=self.num_train_data_threads,
-                                                            capacity=self.train_q_capacity,
-                                                            min_after_dequeue=self.train_q_min_after_dq,
+        self.train_data_provider = self.data_provider_class(csv_file_list=self.train_csv_file,
+                                                            image_crop_size=self.train_crop_size,
+                                                            unroll_len=self.unroll_len,
+                                                            deal_with_end=0,
+                                                            batch_size=self.batch_size,
+                                                            queue_capacity=self.train_q_capacity,
                                                             data_format=self.data_format,
-                                                            num_examples=self.num_train_examples
+                                                            randomize=True
                                                             )
-        self.val_data_provider = self.data_provider_class(filenames=[self.train_csv_file],
-                                                          base_folder=self.data_base_folder,
-                                                          image_size=self.image_size,
-                                                          crop_size=self.train_crop_size,
-                                                          crops_per_image=self.crops_per_image,
-                                                          one_seg=self.one_seg,
-                                                          num_threads=self.num_val_data_threads,
-                                                          capacity=self.val_q_capacity,
-                                                          min_after_dequeue=self.val_q_min_after_dq,
+        self.val_data_provider = self.data_provider_class(csv_file_list=self.val_csv_file,
+                                                          image_crop_size=self.train_crop_size,
+                                                          unroll_len=self.unroll_len,
+                                                          deal_with_end=0,
+                                                          batch_size=self.batch_size,
+                                                          queue_capacity=self.train_q_capacity,
                                                           data_format=self.data_format,
-                                                          num_examples=None
+                                                          randomize=True
                                                           )
 
         os.environ['CUDA_VISIBLE_DEVICES'] = str(self.gpu_id)

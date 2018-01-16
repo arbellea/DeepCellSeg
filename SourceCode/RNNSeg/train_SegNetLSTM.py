@@ -11,15 +11,14 @@ from utils import summary_tag_replace
 
 
 def train():
-
     # Data input
     train_data_provider = params.train_data_provider
     val_data_provider = params.val_data_provider
 
     with tf.name_scope('Data'):
         (train_image_seq_batch, train_seg_seq_batch,
-         train_filename_batch) = train_data_provider.get_batch(params.batch_size)
-        val_image_seq_batch, val_seg_seq_batch, val_filename_batch = val_data_provider.get_batch(params.batch_size)
+         train_is_last_batch) = train_data_provider.get_batch()
+        val_image_seq_batch, val_seg_seq_batch, val_is_last_batch = val_data_provider.get_batch()
     # Build Network Graph
     net = LSTMNetwork()
     val_net = LSTMNetwork()
@@ -40,14 +39,15 @@ def train():
                     out_seg = tf.transpose(out_seg, [0, 2, 3, 1])
                     t_pixel_loss = tf.nn.sparse_softmax_cross_entropy_with_logits(labels=gt_labels, logits=out_seg)
                     cw = tf.constant(params.class_weights)
-                    t_pixel_loss_weighted = t_pixel_loss*(gt_bg*cw[0] + tf.to_float(gt_fg)*cw[1] + gt_edge*cw[2])
+                    t_pixel_loss_weighted = t_pixel_loss * (
+                        gt_bg * cw[0] + tf.to_float(gt_fg) * cw[1] + gt_edge * cw[2])
                     t_loss.append(tf.reduce_mean(t_pixel_loss_weighted))
                     out_fg = tf.equal(tf.argmax(out_seg, 3), 1)
                     intersection = tf.reduce_sum(tf.to_float(tf.logical_and(out_fg, gt_fg)),
                                                  axis=(1, 2), name='intersection')
                     union = tf.reduce_sum(tf.to_float(tf.logical_or(out_fg, gt_fg)), axis=(1, 2), name='union')
 
-                    t_jaccard.append(tf.reduce_mean(tf.divide(intersection+eps, union+eps, name='jaccard')))
+                    t_jaccard.append(tf.reduce_mean(tf.divide(intersection + eps, union + eps, name='jaccard')))
 
             jaccard = tf.divide(tf.add_n(t_jaccard), len(t_loss))
             loss = tf.divide(tf.add_n(t_loss), len(t_loss))
@@ -60,6 +60,9 @@ def train():
                                                      params.norm) for ti in train_image_seq_batch]
                 net_segs = net.build(norm_train_image_seq_batch, phase_train=True, net_params=params.net_params)
             net_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='net')
+            not_last_batch = tf.expand_dims(tf.expand_dims(tf.expand_dims(1 - train_is_last_batch, axis=1), axis=2),
+                                            axis=3)
+            train_gated_states = [[s * not_last_batch for s in state] for state in net.states[-1]]
             if params.one_seg:
                 train_loss, train_jaccard = calc_losses([net_segs[-1]], train_seg_seq_batch)
 
@@ -76,7 +79,12 @@ def train():
             with tf.variable_scope('net', reuse=True):
                 norm_val_image_seq_batch = [tf.div(tf.subtract(vi, params.norm),
                                                    params.norm) for vi in val_image_seq_batch]
-                valnet_segs = val_net.build(norm_val_image_seq_batch, phase_train=False, net_params=params.net_params)
+                valnet_segs = val_net.build(norm_val_image_seq_batch, phase_train=True, net_params=params.net_params)
+
+                val_not_last_batch = tf.expand_dims(
+                    tf.expand_dims(tf.expand_dims(1 - val_is_last_batch, axis=1), axis=2),
+                    axis=3)
+                val_gated_states = [[s * val_not_last_batch for s in state] for state in val_net.states[-1]]
             if params.one_seg:
                 val_loss, val_jaccard = calc_losses([valnet_segs[-1]], val_seg_seq_batch)
             else:
@@ -113,7 +121,7 @@ def train():
         tf.summary.scalar('Jaccard', val_jaccard, collections=['val_summaries'])
 
     q_summaries = tf.get_collection(tf.GraphKeys.SUMMARIES, scope='Data')
-    train_summaries = tf.summary.merge(tf.get_collection('train_summaries')+q_summaries)
+    train_summaries = tf.summary.merge(tf.get_collection('train_summaries') + q_summaries)
     val_summaries = tf.summary.merge(tf.get_collection('val_summaries'))
     summaries_dir = params.experiment_log_dir
     train_writer = tf.summary.FileWriter(os.path.join(summaries_dir, 'train'),
@@ -134,7 +142,8 @@ def train():
             saver.restore(sess, params.load_checkpoint_path)
 
         t = sess.run(global_step)
-        threads = tf.train.start_queue_runners(sess, coord=coord)
+        threads = params.train_data_provider.start_queues(sess, coord)
+        threads += params.val_data_provider.start_queues(sess, coord)
         elapsed_time = 0.
         end_time = 0.
         other_time = 0.
@@ -148,18 +157,25 @@ def train():
             options = tf.RunOptions()
 
         run_metadata = tf.RunMetadata()
+        feed_dict = {}
+        val_feed_dict = {}
         while t < params.num_iterations:
             try:
-
                 start_time = time.time()
                 other_time += start_time - end_time
-                _, t, train_loss_eval, train_jaccard_eval, train_summaries_eval = sess.run([train_step, global_step,
-                                                                                            train_loss, train_jaccard,
-                                                                                            train_summaries],
-                                                                                           options=options,
-                                                                                           run_metadata=run_metadata)
+                _, t, train_loss_eval, train_jaccard_eval, train_summaries_eval, last_state = sess.run(
+                    [train_step, global_step, train_loss, train_jaccard, train_summaries,
+                     train_gated_states],
+                    feed_dict=feed_dict,
+                    options=options,
+                    run_metadata=run_metadata)
+
+                for state_pls, states in zip(net.states[0], last_state):
+                    for pl, s in zip(state_pls, states):
+                        feed_dict[pl] = s
+
                 end_time = time.time()
-                elapsed_time += end_time-start_time
+                elapsed_time += end_time - start_time
                 if params.profile:
                     fetched_timeline = timeline.Timeline(run_metadata.step_stats)
                     chrome_trace = fetched_timeline.generate_chrome_trace_format()
@@ -167,16 +183,22 @@ def train():
                         f.write(chrome_trace)
 
                 if not t % 10:
-                    print('Iteration {}: Loss: {}, Jaccard: {}, Time: {} seconds. '.format(t, train_loss_eval,
+                    print('Iteration {0}: Loss: {1:.3f}, Jaccard: {2:.3f}, Time: {3:.1f} seconds. '.format(t, train_loss_eval,
                                                                                            train_jaccard_eval,
-                                                                                           elapsed_time/10.0, ))
+                                                                                           elapsed_time / 10.0, ))
                     elapsed_time = 0.
                     other_time = 0.
 
                 if not t % params.validation_interval:
-                    val_loss_eval, val_jaccard_eval, val_summaries_eval = sess.run([val_loss, val_jaccard,
-                                                                                    val_summaries])
-                    if not params.dry_run :
+                    val_loss_eval, val_jaccard_eval, val_summaries_eval, val_last_state = sess.run(
+                        [val_loss, val_jaccard,
+                         val_summaries, val_gated_states],
+                        feed_dict=val_feed_dict)
+
+                    for state_pls, states in zip(val_net.states[0], val_last_state):
+                        for pl, s in zip(state_pls, states):
+                            val_feed_dict[pl] = s
+                    if not params.dry_run:
                         val_summaries_eval = summary_tag_replace(val_summaries_eval, 'tb_val/', '')
                         val_writer.add_summary(val_summaries_eval, t)
 

@@ -12,10 +12,10 @@ import scipy.misc
 import argparse
 import sys
 
-try:
-    import matplotlib.pyplot as plt
-except ImportError:
-    plt = None
+# try:
+#     import matplotlib.pyplot as plt
+# except ImportError:
+plt = None
 __author__ = 'assafarbelle'
 
 
