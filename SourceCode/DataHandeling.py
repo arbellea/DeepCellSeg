@@ -3,6 +3,11 @@ import tensorflow as tf
 import os
 import glob
 import cv2
+import queue
+import threading
+import numpy as np
+import pandas as pd
+pd.__version__
 
 # import numpy as np
 # import matplotlib.pyplot as plt
@@ -718,6 +723,206 @@ class DIRSegReaderEvalBiLSTM(object):
         return image_seq_list_fw, filename_seq_fw, image_seq_list_bw, filename_seq_bw
 
 
+class DIRSegReaderEvalLSTM(object):
+    def __init__(self, data_dir: str, filename_format='t*.tif', image_size=(0, 0), capacity=20, data_format='NCHW'):
+        """
+        CSVSegReader is a class that reads csv files containing paths to input image and segmentation image and outputs
+        batches of corresponding image inputs and segmentation inputs.
+         The inputs to the class are:
+            :param data_dir: directory including all image files
+            :type data_dir: str
+            :param filename_format: the format of the files in the directory. use * as a wildcard
+            :type filename_format: str
+            :param image_size: a tuple containing the image size in Y and X dimensions
+            :type image_size: Tuple[int,int]
+            :param capacity: capacity of the shuffle queue, the larger capacity results in better mixing
+            :type capacity: int
+            :param data_format: the format of the data, either NHWC (Batch, Height, Width, Channel) of NCHW 
+            :type data_format: str
+
+        """
+
+        raw_filenames = glob.glob(os.path.join(data_dir, filename_format))
+        raw_filenames.sort()
+
+        self.raw_queue = tf.train.string_input_producer(raw_filenames, shuffle=False, num_epochs=1)
+        self.image_size = image_size
+        self.seq_length = None
+        self.capacity = capacity
+        self.data_format = data_format
+
+    def _get_image(self):
+        image_size = self.image_size + (1,)
+        filename = self.raw_queue.dequeue()
+        im_raw = tf.read_file(filename)
+        image = tf.reshape(tf.cast(tf.image.decode_png(im_raw, channels=1, dtype=tf.uint16), tf.float32),
+                           image_size)
+
+        return image, filename
+
+    def get_sequence(self, seq_length=7):
+        self.seq_length = seq_length
+        image, filename = self._get_image()
+
+        (image_seq,
+         filename_seq) = tf.train.batch([image, filename], batch_size=self.seq_length, num_threads=1,
+                                        capacity=self.capacity)
+
+        if self.data_format == 'NCHW':
+            image_seq = tf.transpose(image_seq, perm=[0, 3, 1, 2])
+
+        image_seq_list = tf.split(image_seq, seq_length, axis=0)
+
+        return image_seq_list, filename_seq
+
+
+class CSVSegReaderSequence(object):
+    def __init__(self, csv_file_list, image_crop_size=(128, 128), unroll_len=7, deal_with_end=0, batch_size=4,
+                 queue_capacity=32, data_format='NCHW', randomize=True):
+        self.csv_file_list = csv_file_list
+        self.sub_seq_size = (unroll_len,) + image_crop_size
+        self.deal_with_end = deal_with_end
+        self.batch_size = batch_size
+        self.queue_capacity = queue_capacity
+        self.data_format = data_format
+        self.randomize = randomize
+
+        self.csv_queue = self._create_csv_queue()
+        self.q_list, self.enqueue_op_list, self.placeholders = self._create_queues()
+        self.batch = self._batch_queues()
+
+    def _read_csv_files(self):
+        csv_filename = self.csv_queue.get()
+        self.csv_queue.put(csv_filename)
+        filenames = []
+        csv_folder = os.path.dirname(csv_filename)
+        with open(csv_filename, 'r') as csv_file:
+            csv_reader = csv.reader(csv_file, delimiter=',', quotechar='|')
+            for row in csv_reader:
+                full_path_row = [os.path.join(csv_folder, item) for item in row]
+                filenames.append(full_path_row)
+        return filenames
+
+    def _load_and_enqueue(self, sess, enqueue_op, coord):
+        unroll_len = self.sub_seq_size[0]
+        while not coord.should_stop():
+            filename_list = self._read_csv_files()
+            image_pl, seg_pl, is_last_pl = self.placeholders
+            random_sub_sample = np.random.randint(0, 5) if self.randomize else 0
+            random_reverse = np.random.randint(0, 2) if self.randomize else 0
+            if random_reverse:
+                filename_list.reverse()
+            if random_sub_sample:
+                filename_list = filename_list[::random_sub_sample]
+            seq_len = len(filename_list)
+            remainder = seq_len % unroll_len
+
+            if remainder:
+                if self.deal_with_end == 0:
+                    filename_list = filename_list[:-remainder]
+                elif self.deal_with_end == 1:
+                    filename_list += filename_list[-2:-unroll_len + remainder - 2:-1]
+                elif self.deal_with_end == 2:
+                    filename_list += filename_list[-1:] * (unroll_len - remainder)
+
+            sub_seq_img = np.zeros(self.sub_seq_size)
+            sub_seq_seg = np.zeros(self.sub_seq_size)
+            for t, filename in enumerate(filename_list):
+                img = cv2.imread(filename[0], -1)
+                seg = cv2.imread(filename[1], -1)
+
+                if t == 0:
+                    img_size = img.shape
+                    crop_y = np.random.randint(0, img_size[0] - self.sub_seq_size[1]) if self.randomize else 0
+                    crop_x = np.random.randint(0, img_size[1] - self.sub_seq_size[2]) if self.randomize else 0
+                    flip = np.random.randint(0, 2, 2) if self.randomize else 0
+                    rotate = np.random.randint(0, 4) * 90 if self.randomize else 0
+
+                img_crop = img[crop_y:crop_y + self.sub_seq_size[1], crop_x:crop_x + self.sub_seq_size[2]]
+                seg_crop = seg[crop_y:crop_y + self.sub_seq_size[1], crop_x:crop_x + self.sub_seq_size[2]]
+
+                if flip[0]:
+                    img_crop = cv2.flip(img_crop, 0)
+                    seg_crop = cv2.flip(seg_crop, 0)
+                if flip[1]:
+                    img_crop = cv2.flip(img_crop, 1)
+                    seg_crop = cv2.flip(seg_crop, 1)
+                if rotate == 1:
+                    img_crop = img_crop.T
+                    seg_crop = seg_crop.T
+                elif rotate == 2:
+                    img_crop = cv2.flip(img_crop, -1)
+                    seg_crop = cv2.flip(seg_crop, -1)
+                elif rotate == 3:
+                    img_crop = cv2.flip(img_crop, -1)
+                    seg_crop = cv2.flip(seg_crop, -1)
+                    img_crop = img_crop.T
+                    seg_crop = seg_crop.T
+
+                sub_seq_img[t % unroll_len] = img_crop
+                sub_seq_seg[t % unroll_len] = seg_crop
+                if not ((t + 1) % unroll_len):
+                    is_last = 0. if (t + 1) < len(filename_list) else 1.
+                    sess.run(enqueue_op, {image_pl: sub_seq_img, seg_pl: sub_seq_seg, is_last_pl: is_last})
+
+    def _create_queues(self):
+        image_pl = tf.placeholder(tf.float32, self.sub_seq_size)
+        seg_pl = tf.placeholder(tf.float32, self.sub_seq_size)
+        is_last_pl = tf.placeholder(tf.float32, ())
+        placeholders = (image_pl, seg_pl, is_last_pl)
+        q_list = []
+        enqueue_op_list = []
+        for _ in range(self.batch_size):
+            q = tf.FIFOQueue(self.queue_capacity, dtypes=[tf.float32, tf.float32, tf.float32],
+                             shapes=[self.sub_seq_size, self.sub_seq_size, ()])
+            q_list.append(q)
+            enqueue_op_list.append(q.enqueue((image_pl, seg_pl, is_last_pl)))
+        return q_list, enqueue_op_list, placeholders
+
+    def _batch_queues(self):
+        img_list = []
+        seg_list = []
+        is_last_list = []
+        for q in self.q_list:
+            img, seg, is_last = q.dequeue()
+            img_list.append(img)
+            seg_list.append(seg)
+            is_last_list.append(is_last)
+        image_batch = tf.stack(img_list, axis=1)
+        seg_batch = tf.stack(seg_list, axis=1)
+        is_last_batch = tf.stack(is_last_list, axis=0)
+        if self.data_format == 'NHWC':
+            image_batch = tf.expand_dims(image_batch, 4)
+            seg_batch = tf.expand_dims(seg_batch, 4)
+        elif self.data_format == 'NCHW':
+            image_batch = tf.expand_dims(image_batch, 2)
+            seg_batch = tf.expand_dims(seg_batch, 2)
+        else:
+            raise ValueError()
+        image_batch_list = tf.unstack(image_batch, num=self.sub_seq_size[0], axis=0)
+        seg_batch_list = tf.unstack(seg_batch, num=self.sub_seq_size[0], axis=0)
+        return image_batch_list, seg_batch_list, is_last_batch
+
+    def _create_csv_queue(self):
+        csv_queue = queue.Queue(maxsize=len(self.csv_file_list))
+        for csv_file in self.csv_file_list:
+            csv_queue.put(csv_file)
+        return csv_queue
+
+    def start_queues(self, sess, coord=tf.train.Coordinator()):
+        threads = []
+        for enqueue_op in self.enqueue_op_list:
+            t = threading.Thread(target=self._load_and_enqueue, args=(sess, enqueue_op, coord))
+            t.daemon = True
+            t.start()
+            threads.append(t)
+        threads += tf.train.start_queue_runners(sess, coord)
+        return threads
+
+    def get_batch(self):
+        return self.batch
+
+
 def tif2png_dir(data_dir: str, out_dir: str, filename_format='t*.tif'):
     """
     tif2png_dir is a function that converts a directory of tif files to png files
@@ -734,33 +939,24 @@ def tif2png_dir(data_dir: str, out_dir: str, filename_format='t*.tif'):
     tif_filenames = glob.glob(os.path.join(data_dir, filename_format))
     tif_filenames.sort()
     os.makedirs(out_dir, exist_ok=True)
+
+    pad_y = 0
+    pad_x = 0
     for tif_filename in tif_filenames:
         img = cv2.imread(tif_filename, -1)
+        img_size = img.shape
+        if img_size[0] % 8:
+            pad_y = 8-(img_size[0] % 8)
+        else:
+            pad_y = 0
+        if img_size[1] % 8:
+            pad_x = 8-(img_size[1] % 8)
+        else:
+            pad_x = 0
+        if pad_x or pad_y:
+            img = cv2.copyMakeBorder(img, 0, pad_y, 0, pad_x, cv2.BORDER_REFLECT_101)
         base_name = os.path.basename(tif_filename)
         base_name = base_name.replace('.tif', '.png')
         png_filename = os.path.join(out_dir, base_name)
         cv2.imwrite(png_filename, img)
-
-
-def create_data_for_lstm(data_dir: str, out_dir: str, filename_format='t*.tif', crop_size=(128, 128), num=10):
-    """
-    
-     The inputs to the class are:
-        :param data_dir: directory including all image files
-        :type data_dir: str
-        :param out_dir: directory to output
-        :type out_dir: str
-        :param filename_format: the format of the files in the directory. use * as a wildcard
-        :type filename_format: str
-
-    """
-
-    tif_filenames = glob.glob(os.path.join(data_dir, filename_format))
-    tif_filenames.sort()
-    os.makedirs(out_dir, exist_ok=True)
-    for tif_filename in tif_filenames:
-        img = cv2.imread(tif_filename, -1)
-        base_name = os.path.basename(tif_filename)
-        base_name = base_name.replace('.tif', '.png')
-        png_filename = os.path.join(out_dir, base_name)
-        cv2.imwrite(png_filename, img)
+    return pad_y, pad_x
