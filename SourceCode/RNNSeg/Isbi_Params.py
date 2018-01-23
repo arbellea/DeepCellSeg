@@ -59,7 +59,7 @@ class ParamBaseISBI(object):
         for _data_set in data_set_names:
 
             data_sets[_data_set] = DataSet(_data_set, data_root)
-            if train_or_challenge == 'Train':
+            if train_or_challenge == 'Training':
                 for seq_id, im_size in TRAIN_IMAGE_SIZES[_data_set].items():
                     data_sets[_data_set].add_sequence(seq_id, im_size, file_format)
             else:
@@ -186,13 +186,13 @@ class ParamsEvalIsbiLSTM(ParamBaseISBI):
     # Data and Data Provider
 
     data_provider_class = DataHandeling.DIRSegReaderEvalLSTM
-    # training_or_challlenge = 'Training'
     training_or_challlenge = 'Challenge'
+    # training_or_challlenge = 'Challenge'
     data_root_dir = os.path.join(ISBI_DATA_ROOT, training_or_challlenge)
     selected_data_set = 'Fluo-N2DH-SIM+'
     # selected_data_set = 'Fluo-N2DH-GOWT1'
     # selected_data_set = 'Fluo-C2DL-MSC'
-    selected_seq = 1
+    selected_seq = 2
     norm = 2 ** 15
     q_capacity = 1000
     data_format = 'NCHW'
@@ -202,9 +202,11 @@ class ParamsEvalIsbiLSTM(ParamBaseISBI):
 
     # Loading Checkpoints
     load_checkpoint = True
-    load_checkpoint_path = '/newdisk/arbellea/DeepCellSegOut/LSTM_Seg_seq/2018-01-13_202745/model_31900.ckpt'  # SIM-01
-    # load_checkpoint_path = '/newdisk/arbellea/DeepCellSegOut/LSTM_Seg_seq/2018-01-14_233514/model_16300.ckpt'  # SIM02
-    # load_checkpoint_path = '/newdisk/arbellea/DeepCellSegOut/LSTM_Seg_seq/2018-01-13_180408/model_15000.ckpt'  # SIM02
+    # load_checkpoint_path = '/newdisk/arbellea/DeepCellSegOut/LSTM_Seg_seq/2018-01-19_133810/model_48500.ckpt'  # SIM-01
+    # load_checkpoint_path = '/newdisk/arbellea/DeepCellSegOut/LSTM_Seg_seq/2018-01-19_133827/model_48400.ckpt'  # SIM02
+    # load_checkpoint_path = '/newdisk/arbellea/DeepCellSegOut/LSTM_Seg_seq/2018-01-13_202745/model_116500.ckpt'  # SIM-01
+    load_checkpoint_path = '/newdisk/arbellea/DeepCellSegOut/LSTM_Seg_seq/2018-01-14_233514/model_102600.ckpt'  # SIM02
+
 
     # Save Outputs
     dry_run = False
@@ -214,7 +216,7 @@ class ParamsEvalIsbiLSTM(ParamBaseISBI):
 
     # Hardware
     useGPU = False
-    gpu_id = 1
+    gpu_id = 0
 
     # Net Architecture
     net_params = {
@@ -234,6 +236,7 @@ class ParamsEvalIsbiLSTM(ParamBaseISBI):
         self.pad_x = 0
         self.pad_y = 0
         self._override_params_(params_dict)
+
 
         self._data_preps_()
 
@@ -277,7 +280,7 @@ class ParamsEvalIsbiLSTM(ParamBaseISBI):
             self.pad_y, self.pad_x = DataHandeling.tif2png_dir(data_dir=selected_sequence.images_dir,
                                                                out_dir=tmp_imgs_dir,
                                                                filename_format=selected_sequence.file_format)
-            self.image_size = (self.image_size[0] + self.pad_y, self.image_size[1] + self.pad_x)
+            self.image_size = (self.image_size[0] + self.pad_y+32, self.image_size[1] + self.pad_x+32)
 
             selected_sequence.images_dir = tmp_imgs_dir
             selected_sequence.file_format = selected_sequence.file_format.replace('.tif', '.png')

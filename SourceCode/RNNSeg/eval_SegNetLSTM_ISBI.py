@@ -78,6 +78,9 @@ def run_net():
                     if params.pad_x:
                         sigoutnp = sigoutnp[:, :-params.pad_x, :]
                         imin[0] = imin[0][:, :, :, :-params.pad_x]
+                    sigoutnp = sigoutnp[16:-16, 16:-16, :]
+                    imin[0] = imin[0][:,: , 16:-16, 16:-16]
+
                 else:
                     if params.pad_y:
                         sigoutnp = sigoutnp[:-params.pad_y, :, :]
@@ -85,6 +88,9 @@ def run_net():
                     if params.pad_x:
                         sigoutnp = sigoutnp[:, :-params.pad_x, :]
                         imin[0] = imin[0][:, :, :-params.pad_x, :]
+                    sigoutnp = sigoutnp[16:-16, 16:-16, :]
+                    imin[0] = imin[0][:, 16:-16, 16:-16, :]
+
                 elapsed_time += end_time - start_time
 
                 for state_ph, last_state in zip(net.states[0], states_out):

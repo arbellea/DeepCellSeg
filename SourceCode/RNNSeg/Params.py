@@ -13,7 +13,7 @@ class ParamsBase(object):
 class ParamsLSTM(ParamsBase):
 
     # Hardware
-    gpu_id = 0
+    gpu_id = 3
     profile = False
 
     # Data and Data Provider
@@ -50,7 +50,7 @@ class ParamsLSTM(ParamsBase):
     num_iterations = 1000000
     learning_rate = 0.001
     skip_t_loss = [0, 1]
-    class_weights = [0.2, 0.2, 0.6]
+    class_weights = [0.04, 0.06, 0.9]
 
     # Validation
     validation_interval = 50
