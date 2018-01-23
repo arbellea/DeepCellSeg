@@ -7,7 +7,6 @@ import queue
 import threading
 import numpy as np
 import pandas as pd
-pd.__version__
 
 # import numpy as np
 # import matplotlib.pyplot as plt
@@ -953,6 +952,7 @@ def tif2png_dir(data_dir: str, out_dir: str, filename_format='t*.tif'):
             pad_x = 8-(img_size[1] % 8)
         else:
             pad_x = 0
+        img = cv2.copyMakeBorder(img, 16, 16, 16, 16, cv2.BORDER_REFLECT_101)
         if pad_x or pad_y:
             img = cv2.copyMakeBorder(img, 0, pad_y, 0, pad_x, cv2.BORDER_REFLECT_101)
         base_name = os.path.basename(tif_filename)

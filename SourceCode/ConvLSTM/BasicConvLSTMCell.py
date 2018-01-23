@@ -1,11 +1,10 @@
-
 import tensorflow as tf
-
-
+from tensorflow.contrib.layers.python.layers.layers import layer_norm
 
 class ConvRNNCell(object):
     """Abstract object representing an Convolutional RNN cell.
     """
+
     def __call__(self, inputs, state, scope=None):
         """Run this RNN cell on inputs, starting from the given state.
         """
@@ -37,10 +36,10 @@ class ConvRNNCell(object):
         if self._state_is_tuple:
             if self._data_format == 'NHWC':
                 zeros = (tf.zeros([batch_size, shape[0], shape[1], num_features]),
-                       tf.zeros([batch_size, shape[0], shape[1], num_features]))
+                         tf.zeros([batch_size, shape[0], shape[1], num_features]))
             else:
                 zeros = (tf.zeros([batch_size, num_features, shape[0], shape[1]]),
-                       tf.zeros([batch_size, num_features, shape[0], shape[1]]))
+                         tf.zeros([batch_size, num_features, shape[0], shape[1]]))
         else:
             if self._data_format == 'NHWC':
                 zeros = tf.zeros([batch_size, shape[0], shape[1], num_features * 2])
@@ -110,6 +109,7 @@ class BasicConvLSTMCell(ConvRNNCell):
                 new_state = tf.concat(axis=channel_axis, values=[new_c, new_h])
         return new_h, new_state
 
+
 class LayerNormConvLSTMCell(ConvRNNCell):
     """Basic Conv LSTM recurrent network cell. The
     """
@@ -155,23 +155,36 @@ class LayerNormConvLSTMCell(ConvRNNCell):
             else:
                 c, h = tf.split(axis=channel_axis, num_or_size_splits=2, value=state)
             concat_i = _conv_linear([inputs], self.filter_size, self.num_features * 4, False,
-                                  data_format=self._data_format, scope='Input')
+                                    data_format=self._data_format, scope='Input')
             concat_h = _conv_linear([inputs], self.filter_size, self.num_features * 4, False,
-                                  data_format=self._data_format, scope='H')
+                                    data_format=self._data_format, scope='H')
             bias_term = tf.get_variable("Bias", [self.num_features * 4], dtype=inputs.dtype,
                                         initializer=tf.constant_initializer(0.0, dtype=inputs.dtype))
-            concat = tf.nn.bias_add(tf.contrib.layers.layer_norm(concat_i) + tf.contrib.layers.layer_norm(concat_h),
+            if self._data_format == 'NCHW':
+                concat_i = tf.transpose(concat_i, (0, 2, 3, 1))
+                concat_h = tf.transpose(concat_h, (0, 2, 3, 1))
+            normed_i = layer_norm(concat_i)
+            normed_h = layer_norm(concat_h)
+            if self._data_format == 'NCHW':
+                normed_i = tf.transpose(normed_i, (0, 3, 1, 2))
+                normed_h = tf.transpose(normed_h, (0, 3, 1, 2))
+
+            concat = tf.nn.bias_add(normed_i + normed_h,
                                     bias_term, data_format=self._data_format)
             # i = input_gate, j = new_input, f = forget_gate, o = output_gate
             i, j, f, o = tf.split(axis=channel_axis, num_or_size_splits=4, value=concat)
             new_c = (c * tf.nn.sigmoid(f + self._forget_bias) + tf.nn.sigmoid(i) * self._activation(j))
-            new_c_norm = tf.contrib.layers.layer_norm(new_c)
+            if self._data_format == 'NCHW':
+                new_c = tf.transpose(new_c, (0, 2, 3, 1))
+            new_c_norm = layer_norm(new_c)
+            if self._data_format == 'NCHW':
+                new_c_norm = tf.transpose(new_c_norm, (0, 3, 1, 2))
             new_h = self._activation(new_c_norm) * tf.nn.sigmoid(o)
 
             if self._state_is_tuple:
-                new_state = (new_c, new_h)
+                new_state = (new_c_norm, new_h)
             else:
-                new_state = tf.concat(axis=channel_axis, values=[new_c, new_h])
+                new_state = tf.concat(axis=channel_axis, values=[new_c_norm, new_h])
         return new_h, new_state
 
 
@@ -261,13 +274,11 @@ class BasicConvGRUCell(ConvRNNCell):
             channel_axis = 3 if self._data_format == 'NHWC' else 1
 
             concat = tf.nn.sigmoid(_conv_linear([inputs, h], self.filter_size, self.num_features * 2, True,
-                                  data_format=self._data_format, scope='gates'))
+                                                data_format=self._data_format, scope='gates'))
 
             z, r = tf.split(axis=channel_axis, num_or_size_splits=2, value=concat)
             i = tf.nn.tanh(_conv_linear([inputs, tf.multiply(r, h)], self.filter_size, self.num_features, True,
                                         data_format=self._data_format, scope='input'))
-            new_h = tf.add(tf.multiply(z, h), tf.multiply(1-z, i))
+            new_h = tf.add(tf.multiply(z, h), tf.multiply(1 - z, i))
 
         return new_h
-
-

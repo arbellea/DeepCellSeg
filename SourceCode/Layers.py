@@ -1,7 +1,6 @@
 import tensorflow as tf
 from tensorflow.contrib.layers.python.layers.layers import layer_norm
 
-tf.load_op_library()
 __author__ = 'assafarbelle'
 
 
