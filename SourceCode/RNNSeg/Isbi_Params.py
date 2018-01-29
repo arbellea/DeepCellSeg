@@ -186,16 +186,21 @@ class ParamsEvalIsbiLSTM(ParamBaseISBI):
     # Data and Data Provider
 
     data_provider_class = DataHandeling.DIRSegReaderEvalLSTM
+    # training_or_challlenge = 'Training'
     training_or_challlenge = 'Challenge'
-    # training_or_challlenge = 'Challenge'
     data_root_dir = os.path.join(ISBI_DATA_ROOT, training_or_challlenge)
     selected_data_set = 'Fluo-N2DH-SIM+'
     # selected_data_set = 'Fluo-N2DH-GOWT1'
+    # selected_data_set = 'Fluo-N2DL-HeLa'
+
     # selected_data_set = 'Fluo-C2DL-MSC'
-    selected_seq = 2
+    selected_seq = 1
     norm = 2 ** 15
+    renorm_factor = 1 # 0.0068#2**8.8/2**16 #0.0068
     q_capacity = 1000
     data_format = 'NCHW'
+    min_cell_size = 100
+    max_cell_size = 100000
 
     # Eval Regime
     seq_length = 1
@@ -203,9 +208,9 @@ class ParamsEvalIsbiLSTM(ParamBaseISBI):
     # Loading Checkpoints
     load_checkpoint = True
     # load_checkpoint_path = '/newdisk/arbellea/DeepCellSegOut/LSTM_Seg_seq/2018-01-19_133810/model_48500.ckpt'  # SIM-01
-    # load_checkpoint_path = '/newdisk/arbellea/DeepCellSegOut/LSTM_Seg_seq/2018-01-19_133827/model_48400.ckpt'  # SIM02
+    load_checkpoint_path = '/newdisk/arbellea/DeepCellSegOut/LSTM_Seg_seq/2018-01-19_133827/model_48400.ckpt'  # SIM02
     # load_checkpoint_path = '/newdisk/arbellea/DeepCellSegOut/LSTM_Seg_seq/2018-01-13_202745/model_116500.ckpt'  # SIM-01
-    load_checkpoint_path = '/newdisk/arbellea/DeepCellSegOut/LSTM_Seg_seq/2018-01-14_233514/model_102600.ckpt'  # SIM02
+    # load_checkpoint_path = '/newdisk/arbellea/DeepCellSegOut/LSTM_Seg_seq/2018-01-14_233514/model_102600.ckpt'  # SIM02
 
 
     # Save Outputs

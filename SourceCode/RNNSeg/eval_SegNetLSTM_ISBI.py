@@ -5,7 +5,7 @@ import cv2
 import numpy as np
 import tensorflow as tf
 import argparse
-import scipy
+import scipy.ndimage
 from RNNSeg.LSTM_Network import LSTMNetwork
 from RNNSeg.Isbi_Params import ParamsEvalIsbiLSTM
 
@@ -19,11 +19,10 @@ def run_net():
 
     # Build Network Graph
     net = LSTMNetwork()
-    net2 = LSTMNetwork()
     device = '/gpu:0' if params.useGPU else '/cpu:0'
     with tf.device(device):
         with tf.name_scope('run_tower'):
-            image_seq_norm = [tf.div(tf.subtract(im[:, :, :, :], params.norm),
+            image_seq_norm = [tf.div(tf.subtract(tf.multiply(im, params.renorm_factor), params.norm),
                                      params.norm) for im in image_seq]
 
             with tf.variable_scope('net'):
@@ -79,7 +78,7 @@ def run_net():
                         sigoutnp = sigoutnp[:, :-params.pad_x, :]
                         imin[0] = imin[0][:, :, :, :-params.pad_x]
                     sigoutnp = sigoutnp[16:-16, 16:-16, :]
-                    imin[0] = imin[0][:,: , 16:-16, 16:-16]
+                    imin[0] = imin[0][:, :, 16:-16, 16:-16]
 
                 else:
                     if params.pad_y:
@@ -108,7 +107,9 @@ def run_net():
 
                     dist, ind = scipy.ndimage.morphology.distance_transform_edt(1 - seg_cell, return_indices=True)
                     labels = labels[ind[0, :], ind[1, :]] * seg_edge * (dist < 20) + labels
-
+                    for n in range(1, num_cells):
+                        fill = scipy.ndimage.morphology.binary_fill_holes(labels == n).astype(np.float32)
+                        labels = labels + (fill - (labels == n)) * n
                     sigoutnp_vis = np.flip(np.round(sigoutnp * (2 ** 16 - 1)).astype(np.uint16), 2)
                     cv2.imwrite(filename=base_out_vis_fname.format(time=t), img=sigoutnp_vis)
                     imrgb = np.stack([imin[0].squeeze()] * 3, 2)
@@ -117,11 +118,23 @@ def run_net():
                     cv2.imwrite(filename=base_out_overlay_fname.format(time=t), img=overlay.astype(np.uint16))
 
                     if t == 0:
-                        labels_prev = cc_out[1]
-                        max_id = num_cells
-                        isbi_out_dict = {n: [n, 0, 0, 0] for n in range(1, num_cells)}
+
+                        labels_out = np.zeros_like(labels)
+                        isbi_out_dict = {}
+                        p = 0
+                        for n in range(1, num_cells):
+                            area = stats[n, cv2.CC_STAT_AREA]
+                            if params.min_cell_size <= area <= params.max_cell_size:
+                                p += 1
+                                isbi_out_dict[p] = [p, 0, 0, 0]
+                                labels_out[labels == n] = p
+
+                            else:
+                                labels[labels == n] = 0
+                        max_id = labels_out.max()
+                        labels_prev = labels_out
                         out_fname = base_out_fname.format(time=t)
-                        cv2.imwrite(filename=out_fname, img=labels.astype(np.uint16))
+                        cv2.imwrite(filename=out_fname, img=labels_out.astype(np.uint16))
 
                         continue
                     matched_labels = np.zeros_like(labels, dtype=np.uint16)
@@ -130,7 +143,8 @@ def run_net():
                     ids_to_split = set()
                     split_dict = {}
                     for p in np.arange(1, num_cells):
-                        if stats[p, cv2.CC_STAT_AREA] < 200:
+                        area = stats[p, cv2.CC_STAT_AREA]
+                        if not (params.min_cell_size <= area <= params.max_cell_size):
                             unmatched_indexes.remove(p)
                             continue
 
@@ -152,19 +166,21 @@ def run_net():
                                     # Keep score of matched_indexes labels in order to know which tracks to stop
                                     split_dict[candidate].append(p)
                                     ids_to_split.add(candidate)
-                                    continued_ids.remove(candidate)
+
                                 matched_labels[labels == p] = candidate
                                 continue
-                    for cont_id in continued_ids:
-                        isbi_out_dict[cont_id][2] += 1
 
                     out_labels = matched_labels.copy()
                     for parent_id, idxs in split_dict.items():
-                        if len(idxs) > 1:
+                        if len(idxs) == 2:
+                            continued_ids.remove(parent_id)
                             for idx in idxs:
                                 max_id += 1
                                 out_labels[labels == idx] = max_id
                                 isbi_out_dict[max_id] = [max_id, t, t, parent_id]
+
+                    for cont_id in continued_ids:
+                        isbi_out_dict[cont_id][2] += 1
 
                     for unmatched in unmatched_indexes:
                         max_id += 1
@@ -208,7 +224,12 @@ if __name__ == '__main__':
     parser.add_argument('--tmp_output_dir', dest='save_out_dir', type=str,
                         help="Directory to save temporary outputs")
     parser.add_argument('--cpu', dest='useGPU', action="store_false",
-                        help="Directory to save temporary outputs")
+                        help="Use CPU instead of GPU")
+    parser.add_argument('-r', '--renorm', dest='renorm_factor', type=float)
+
+    parser.add_argument('--min_size', dest='min_cell_size', type=float)
+    parser.add_argument('--max_size', dest='max_cell_size', type=float)
+
     args = parser.parse_args()
     args_dict = {key: val for key, val in vars(args).items() if val}
     params = ParamsEvalIsbiLSTM(args_dict)
