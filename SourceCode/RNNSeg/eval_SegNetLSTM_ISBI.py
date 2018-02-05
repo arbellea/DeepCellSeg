@@ -131,7 +131,7 @@ def run_net():
 
                             else:
                                 labels[labels == n] = 0
-                        max_id = labels_out.max()
+                        max_id = labels_out.max().astype(np.uint16)
                         labels_prev = labels_out
                         out_fname = base_out_fname.format(time=t)
                         cv2.imwrite(filename=out_fname, img=labels_out.astype(np.uint16))
@@ -144,12 +144,13 @@ def run_net():
                     split_dict = {}
                     for p in np.arange(1, num_cells):
                         area = stats[p, cv2.CC_STAT_AREA]
+
+                        matching_mask = labels_prev[labels == p]
+                        matching_candidates = np.unique(matching_mask)
                         if not (params.min_cell_size <= area <= params.max_cell_size):
                             unmatched_indexes.remove(p)
                             continue
 
-                        matching_mask = labels_prev[labels == p]
-                        matching_candidates = np.unique(matching_mask)
                         for candidate in matching_candidates:
                             if candidate == 0:
                                 continue
