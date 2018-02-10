@@ -1216,6 +1216,7 @@ if __name__ == "__main__":
     parser.add_argument('-a', '--adversarial_ascent', type=int, default=0, help="Coefficiant for adversarial ascent")
     parser.add_argument('--vgg_disc', action="store_false",
                         help="Use VGG architecutre instead of RibCage Architecture for discriminator")
+    parser.add_argument('--rib_disc', action="store_false", help="Use RibCage Architecture for discriminator")
     parser.add_argument('--output_dir', default='~/DeepCellSegOutput',
                         help="Directory to save outputs")
     args = parser.parse_args()
