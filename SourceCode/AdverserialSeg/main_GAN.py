@@ -1216,7 +1216,7 @@ if __name__ == "__main__":
     parser.add_argument('-a', '--adversarial_ascent', type=int, default=0, help="Coefficiant for adversarial ascent")
     parser.add_argument('--vgg_disc', action="store_false",
                         help="Use VGG architecutre instead of RibCage Architecture for discriminator")
-    parser.add_argument('--rib_disc', action="store_false", help="Use RibCage Architecture for discriminator")
+    parser.add_argument('--classic_disc', action="store_false", help="Use Clasic instead of RibCage Architecture for discriminator")
     parser.add_argument('--output_dir', default='~/DeepCellSegOutput',
                         help="Directory to save outputs")
     args = parser.parse_args()
@@ -1282,7 +1282,7 @@ if __name__ == "__main__":
         sys.stdout = f
     print("Start")
     trainer = GANTrainer(train_filename, val_filename, test_filename, summaries_dir_name, num_examples=example_num,
-                         Unet=Unet, RibD=args.rib_disc, crop_size=crop_size)
+                         Unet=Unet, RibD=args.classic_disc, crop_size=crop_size)
     success_flag = False
     if not test_only:
         print("Build Trainer")
