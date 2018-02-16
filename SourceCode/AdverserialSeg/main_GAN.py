@@ -475,7 +475,7 @@ class SegNetG(Network):
         crop_size += (kxy - 1) / 2
 
         # Layer 4
-        kxy = 3
+        kxy = 4
         kout = 64
         conv = self.conv('conv4', relu, kxy, kxy, kout, padding='VALID')
         bn = self.batch_norm('bn4', conv, phase_train, reuse)
