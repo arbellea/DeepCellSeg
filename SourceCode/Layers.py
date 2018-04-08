@@ -1,4 +1,5 @@
 import tensorflow as tf
+from tensorflow.contrib.layers.python.layers.layers import layer_norm
 
 __author__ = 'assafarbelle'
 
@@ -16,7 +17,6 @@ def conv(in_tensor,
          data_format='NHWC',
          reuse=False
          ):
-
     with tf.variable_scope(name, reuse=reuse):
         channel = 1 if data_format == 'NCHW' else 3
         in_shape = in_tensor.get_shape().as_list()[channel]
@@ -34,7 +34,6 @@ def conv(in_tensor,
                 stride = [1] + stride + [1]
             else:
                 stride = [1, 1] + stride
-
 
         kernel = tf.get_variable('weights', shape=kernel_shape, initializer=kernel_initializer)
         conv = tf.nn.conv2d(in_tensor, kernel, strides=stride, padding=padding, data_format=data_format)
@@ -61,7 +60,6 @@ def conv2d_transpose(in_tensor,
                      padding='VALID',
                      data_format='NHWC'
                      ):
-
     with tf.variable_scope(name):
         channel = 1 if data_format == 'NCHW' else 3
         in_shape = in_tensor.get_shape().as_list()[channel]
@@ -91,7 +89,6 @@ def fc(in_tensor, name, kout,
        weights_initializer=None,
        biase_initializer=None,
        ):
-
     in_shape = in_tensor.get_shape().as_list()
     if len(in_shape) > 2:
         in_tensor = tf.reshape(in_tensor, [in_shape[0], -1])
@@ -114,7 +111,6 @@ def fc(in_tensor, name, kout,
 
 
 def leaky_relu(in_tensor, name, alpha=0.1):
-
     return tf.maximum(in_tensor, tf.multiply(tf.constant(alpha), in_tensor), name=name)
 
 
@@ -174,4 +170,13 @@ def batch_norm(in_tensor, phase_train, name, reuse=None, data_format='NHWC', cen
     with tf.variable_scope(name):
         # return tf.contrib.layers.batch_norm(in_tensor, is_training=phase_train, scope=scope, reuse=reuse)
         return tf.layers.batch_normalization(in_tensor, axis=axis, center=center, scale=scale, training=phase_train,
-                                             reuse=reuse, fused=True, momentum=0.99)
+                                             reuse=reuse, fused=True, momentum=0.99, epsilon=1e-1)
+
+
+def layer_norm(in_tensor, data_format='NHWC'):
+    if data_format == 'NCHW':
+        in_tensor = tf.transpose(in_tensor, (0, 2, 3, 1))
+    out_tensor = layer_norm(in_tensor)
+    if data_format == 'NCHW':
+        out_tensor = tf.transpose(out_tensor, (0, 3, 1, 2))
+    return out_tensor
