@@ -15,7 +15,7 @@ def run_net():
     data_provider = params.data_provider
 
     with tf.name_scope('Data'):
-        image_seq, filename_seq = data_provider.get_sequence(params.seq_length)
+        image_seq, filename_seq = data_provider.get_batch()
 
     # Build Network Graph
     net = LSTMNetwork()
@@ -39,9 +39,18 @@ def run_net():
     with tf.Session(config=config) as sess:
         sess.run(init_op)
         if params.load_checkpoint:
-            saver.restore(sess, params.load_checkpoint_path)
+            if not params.load_checkpoint_path.endswith('.ckpt'):
+                ckpt_path = tf.train.latest_checkpoint(params.load_checkpoint_path)
+            else:
+                ckpt_path = params.load_checkpoint_path
+            if ckpt_path:
+                saver.restore(sess, ckpt_path)
+                print('Loaded checkpoint from: {}'.format(ckpt_path))
 
-        threads = tf.train.start_queue_runners(sess, coord=coord)
+            else:
+                raise ValueError('Could not find checkpoint in: {}'.format(params.load_checkpoint_path))
+
+        threads = data_provider.start_queues(sess, coord=coord)
         elapsed_time = 0.
         end_time = 0.
         other_time = 0.
@@ -68,6 +77,8 @@ def run_net():
                                       filename_seq, sigout[0][0], image_seq], options=options,
                                      feed_dict=feed_dict)
                 (states_out, file_names, sigoutnp, imin) = fetch_out
+                q_size = sess.run(data_provider.q_list[0].size())
+                loop = q_size > 0 or not coord.should_stop()
 
                 end_time = time.time()
                 if params.data_format == 'NCHW':
@@ -109,7 +120,23 @@ def run_net():
                     labels = labels[ind[0, :], ind[1, :]] * seg_edge * (dist < 20) + labels
                     for n in range(1, num_cells):
                         fill = scipy.ndimage.morphology.binary_fill_holes(labels == n).astype(np.float32)
+
                         labels = labels + (fill - (labels == n)) * n
+                        if params.multi_split:
+                            stats[n, cv2.CC_STAT_AREA] = np.count_nonzero(labels == n)
+
+                    # filter by fov
+                    if params.fov:
+                        fov_im = np.ones_like(labels)
+                        fov_im[:params.fov, :] = 0
+                        fov_im[-params.fov:, :] = 0
+                        fov_im[:, params.fov] = 0
+                        fov_im[:, -params.fov:] = 0
+                        fov_labels = labels * fov_im
+                        unique_fov_labels = np.unique(fov_labels.flatten())
+                        remove_ind = np.setdiff1d(np.arange(num_cells), unique_fov_labels)
+                    else:
+                        remove_ind = []
                     sigoutnp_vis = np.flip(np.round(sigoutnp * (2 ** 16 - 1)).astype(np.uint16), 2)
                     cv2.imwrite(filename=base_out_vis_fname.format(time=t), img=sigoutnp_vis)
                     imrgb = np.stack([imin[0].squeeze()] * 3, 2)
@@ -119,12 +146,12 @@ def run_net():
 
                     if t == 0:
 
-                        labels_out = np.zeros_like(labels)
+                        labels_out = np.zeros_like(labels, dtype=np.uint16)
                         isbi_out_dict = {}
                         p = 0
                         for n in range(1, num_cells):
                             area = stats[n, cv2.CC_STAT_AREA]
-                            if params.min_cell_size <= area <= params.max_cell_size:
+                            if params.min_cell_size <= area <= params.max_cell_size and not (n in remove_ind):
                                 p += 1
                                 isbi_out_dict[p] = [p, 0, 0, 0]
                                 labels_out[labels == n] = p
@@ -135,7 +162,7 @@ def run_net():
                         labels_prev = labels_out
                         out_fname = base_out_fname.format(time=t)
                         cv2.imwrite(filename=out_fname, img=labels_out.astype(np.uint16))
-
+                        print("Saved File: {}".format(out_fname))
                         continue
                     matched_labels = np.zeros_like(labels, dtype=np.uint16)
                     unmatched_indexes = list(range(1, num_cells))
@@ -147,7 +174,7 @@ def run_net():
 
                         matching_mask = labels_prev[labels == p]
                         matching_candidates = np.unique(matching_mask)
-                        if not (params.min_cell_size <= area <= params.max_cell_size):
+                        if not (params.min_cell_size <= area <= params.max_cell_size) or (p in remove_ind):
                             unmatched_indexes.remove(p)
                             continue
 
@@ -173,12 +200,12 @@ def run_net():
 
                     out_labels = matched_labels.copy()
                     for parent_id, idxs in split_dict.items():
-                        if len(idxs) == 2:
+                        if len(idxs) == 2 or (len(idxs) > 1 and params.multi_split):
                             continued_ids.remove(parent_id)
                             for idx in idxs:
                                 max_id += 1
                                 out_labels[labels == idx] = max_id
-                                isbi_out_dict[max_id] = [max_id, t, t, parent_id]
+                                isbi_out_dict[max_id] = [max_id, t, t, parent_id.astype(np.uint16)]
 
                     for cont_id in continued_ids:
                         isbi_out_dict[cont_id][2] += 1
@@ -224,14 +251,15 @@ if __name__ == '__main__':
                         help="Directory to save final outputs")
     parser.add_argument('--tmp_output_dir', dest='save_out_dir', type=str,
                         help="Directory to save temporary outputs")
-    parser.add_argument('--cpu', dest='useGPU', action="store_false",
+    parser.add_argument('--cpu', dest='useGPU', action="store_const", const=False,
                         help="Use CPU instead of GPU")
     parser.add_argument('-r', '--renorm', dest='renorm_factor', type=float)
 
     parser.add_argument('--min_size', dest='min_cell_size', type=float)
     parser.add_argument('--max_size', dest='max_cell_size', type=float)
+    parser.add_argument('--multi_split', dest='multi_split', action='store_const', const=True)
 
     args = parser.parse_args()
-    args_dict = {key: val for key, val in vars(args).items() if val}
+    args_dict = {key: val for key, val in vars(args).items() if not (val is None)}
     params = ParamsEvalIsbiLSTM(args_dict)
     run_net()

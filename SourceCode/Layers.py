@@ -1,5 +1,5 @@
 import tensorflow as tf
-from tensorflow.contrib.layers.python.layers.layers import layer_norm
+from tensorflow.contrib.layers.python.layers.layers import layer_norm as layer_norm_tf
 
 __author__ = 'assafarbelle'
 
@@ -70,13 +70,15 @@ def conv2d_transpose(in_tensor,
             stride = [1, stride, stride, 1]
         elif isinstance(stride, list) and len(stride) == 2:
             stride = [1] + stride + [1]
+        if channel == 1:
+            stride = [1, 1] + stride[1:3]
 
         kernel = tf.get_variable('weights', shape=kernel_shape, initializer=kernel_initializer)
         conv_t = tf.nn.conv2d_transpose(in_tensor, kernel, output_shape=outshape, strides=stride, padding=padding,
                                         data_format=data_format)
         if biased:
             b = tf.get_variable('bias', kout, initializer=biase_initializer)
-            out = tf.nn.bias_add(conv_t, b, name=name)
+            out = tf.nn.bias_add(conv_t, b, name=name, data_format=data_format)
         else:
             out = conv_t
             b = None
@@ -176,7 +178,7 @@ def batch_norm(in_tensor, phase_train, name, reuse=None, data_format='NHWC', cen
 def layer_norm(in_tensor, data_format='NHWC'):
     if data_format == 'NCHW':
         in_tensor = tf.transpose(in_tensor, (0, 2, 3, 1))
-    out_tensor = layer_norm(in_tensor)
+    out_tensor = layer_norm_tf(in_tensor)
     if data_format == 'NCHW':
         out_tensor = tf.transpose(out_tensor, (0, 3, 1, 2))
     return out_tensor

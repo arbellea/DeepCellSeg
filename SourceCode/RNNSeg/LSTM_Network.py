@@ -3,16 +3,16 @@ from ConvLSTM.BasicConvLSTMCell import BasicConvLSTMCell, LayerNormConvLSTMCell,
 import Layers
 
 DEFAULT_NET_PARAMS = {
-                'conv_kxy': 3,
-                'kout1': 32,
-                'kout2': 64,
-                'kout3': 128,
-                'kout4': 256,
-                'lstm_kxy': [7, 7],
-                'lstm_kout1': 32,
-                'lstm_kout2': 64,
-                'lstm_kout3': 128,
-                'lstm_kout4': 256,
+    'conv_kxy': 3,
+    'kout1': 32,
+    'kout2': 64,
+    'kout3': 128,
+    'kout4': 256,
+    'lstm_kxy': [7, 7],
+    'lstm_kout1': 32,
+    'lstm_kout2': 64,
+    'lstm_kout3': 128,
+    'lstm_kout4': 256,
 }
 
 
@@ -22,20 +22,24 @@ class LSTMNetwork(object):
         self.states = []
         pass
 
-    def build(self, input_sequence, phase_train=True, net_params=DEFAULT_NET_PARAMS, data_format='NCHW'):
+    def build(self, input_sequence, phase_train=True, net_params=DEFAULT_NET_PARAMS, data_format='NCHW',
+              unet_loss=False):
 
+        def conv_bn_relu_pool(_input_image, name, kxy, kout, stride=None, biased=True, reuse=None, do_ln=True):
 
-        def conv_bn_relu_pool(_input_image, name, kxy, kout, stride=None, biased=True, reuse=None):
+            conv, _, _ = Layers.conv(_input_image, name=name + '/conv', kx=kxy, ky=kxy, kout=kout, stride=stride,
+                                     biased=biased,
+                                     padding='SAME', data_format=data_format, reuse=reuse, kernel_initializer=tf.truncated_normal_initializer)
+            bn = Layers.batch_norm(conv, phase_train, name + '/bn', reuse=reuse, data_format=data_format)
+            relu = Layers.leaky_relu(bn, name + '/relu')
+            # if do_ln:
+            #     ln = Layers.layer_norm(conv, data_format=data_format)
+            #     relu = Layers.leaky_relu(ln, name+'/relu')
+            # else:
+            #     relu = Layers.leaky_relu(conv, name + '/relu')
+            pool = Layers.max_pool(relu, name=name + '/pool', padding='SAME', data_format=data_format)
 
-            conv, _, _ = Layers.conv(_input_image, name=name+'/conv', kx=kxy, ky=kxy, kout=kout, stride=stride, biased=biased,
-                               padding='SAME', data_format=data_format, reuse=reuse)
-            bn = Layers.batch_norm(conv, phase_train, name+'/bn', reuse=reuse, data_format=data_format)
-            relu = Layers.leaky_relu(bn, name+'/relu')
-            # ln = Layers.layer_norm(conv, data_format=data_format)
-            # relu = Layers.leaky_relu(ln, name+'/relu')
-            pool = Layers.max_pool(relu, name=name+'/pool', padding='SAME', data_format=data_format)
-
-            return pool, relu
+            return pool, relu, (conv, bn)
 
         for t, input_image in enumerate(input_sequence):
 
@@ -53,37 +57,37 @@ class LSTMNetwork(object):
                 lstm_kout3 = net_params['lstm_kout3']
                 lstm_kout4 = net_params['lstm_kout4']
 
-                layer1p, layer1 = conv_bn_relu_pool(input_image, 'layer1', conv_kxy, kout1, reuse=t > 0)
-                layer2p, layer2 = conv_bn_relu_pool(layer1p, 'layer2', conv_kxy, kout2, reuse=t > 0)
-                layer3p, layer3 = conv_bn_relu_pool(layer2p, 'layer3', conv_kxy, kout3, reuse=t > 0)
-                _, layer4 = conv_bn_relu_pool(layer3p, 'layer4', conv_kxy, kout4, reuse=t > 0)
+                layer1p, layer1, (c1, bn1) = conv_bn_relu_pool(input_image, 'layer1', conv_kxy, kout1, reuse=t > 0, do_ln=False)
+                layer2p, layer2, (c2,b2) = conv_bn_relu_pool(layer1p, 'layer2', conv_kxy, kout2, reuse=t > 0)
+                layer3p, layer3, (c3,b3) = conv_bn_relu_pool(layer2p, 'layer3', conv_kxy, kout3, reuse=t > 0)
+                _, layer4, (c4,b4) = conv_bn_relu_pool(layer3p, 'layer4', conv_kxy, kout4, reuse=t > 0)
                 input_shape = input_image.get_shape().as_list()
                 layer2_shape = layer2.get_shape().as_list()
                 layer3_shape = layer3.get_shape().as_list()
                 layer4_shape = layer4.get_shape().as_list()
                 if data_format == 'NCHW':
                     lstm4 = LayerNormConvLSTMCell(shape=layer4_shape[2:], filter_size=lstm_kxy,
-                                              num_features=lstm_kout4, data_format=data_format)
+                                                  num_features=lstm_kout4, data_format=data_format)
                     lstm3 = LayerNormConvLSTMCell(shape=layer3_shape[2:], filter_size=lstm_kxy,
-                                              num_features=lstm_kout3, data_format=data_format)
+                                                  num_features=lstm_kout3, data_format=data_format)
                     lstm2 = LayerNormConvLSTMCell(shape=layer2_shape[2:], filter_size=lstm_kxy,
-                                              num_features=lstm_kout2, data_format=data_format)
+                                                  num_features=lstm_kout2, data_format=data_format)
                     lstm1 = LayerNormConvLSTMCell(shape=input_shape[2:], filter_size=lstm_kxy,
-                                              num_features=lstm_kout1, data_format=data_format)
+                                                  num_features=lstm_kout1, data_format=data_format)
                 else:
                     lstm4 = LayerNormConvLSTMCell(shape=layer4_shape[1:3], filter_size=lstm_kxy,
-                                              num_features=lstm_kout4, data_format=data_format)
+                                                  num_features=lstm_kout4, data_format=data_format)
                     lstm3 = LayerNormConvLSTMCell(shape=layer3_shape[1:3], filter_size=lstm_kxy,
-                                              num_features=lstm_kout3, data_format=data_format)
+                                                  num_features=lstm_kout3, data_format=data_format)
                     lstm2 = LayerNormConvLSTMCell(shape=layer2_shape[1:3], filter_size=lstm_kxy,
-                                              num_features=lstm_kout2, data_format=data_format)
+                                                  num_features=lstm_kout2, data_format=data_format)
                     lstm1 = LayerNormConvLSTMCell(shape=input_shape[1:3], filter_size=lstm_kxy,
-                                              num_features=lstm_kout1, data_format=data_format)
+                                                  num_features=lstm_kout1, data_format=data_format)
 
                 if t == 0:
                     z1 = lstm1.zero_state(batch_size=input_shape[0])
                     init_state = [(tf.placeholder_with_default(z1[0], z1[0].get_shape(), 'init_state_ph_1'),
-                                  tf.placeholder_with_default(z1[1], z1[1].get_shape(), 'init_state_ph_1_c'))]
+                                   tf.placeholder_with_default(z1[1], z1[1].get_shape(), 'init_state_ph_1_c'))]
                     z2 = lstm2.zero_state(batch_size=input_shape[0])
                     init_state.append((tf.placeholder_with_default(z2[0], z2[0].get_shape(), 'init_state_ph_2'),
                                        tf.placeholder_with_default(z2[1], z2[1].get_shape(), 'init_state_ph_2_c')))
@@ -122,18 +126,21 @@ class LSTMNetwork(object):
                     lstm1_out, lstm1_state = lstm1(lstm1_input, self.states[t][0], scope='lstm1', reuse=t > 0)
 
                 self.states.append([lstm1_state, lstm2_state, lstm3_state, lstm4_state])
-
-                out_conv, _, _ = Layers.conv(lstm1_out, name='out_conv', kx=1, ky=1, kout=3, padding='SAME',
-                                       data_format=data_format, reuse=t > 0)
+                kout = 2 if unet_loss else 3
+                out_conv, _, _ = Layers.conv(lstm1_out, name='out_conv', kx=1, ky=1, kout=kout, padding='SAME',
+                                             data_format=data_format, reuse=t > 0)
                 local_layers = {'input_image': input_image, 'layer1': layer1, 'layer1p': layer1p, 'layer2': layer2,
                                 'layer2p': layer2p, 'layer3': layer3, 'layer3p': layer3p, 'layer4': layer4,
                                 'lstm4_out': lstm4_out, 'lstm4_up': lstm4_up, 'lstm3_out': lstm3_out,
                                 'lstm3_up': lstm3_up, 'lstm2_out': lstm2_out, 'lstm2_up': lstm2_up,
-                                'lstm1_out': lstm4_out, 'out_conv': out_conv
+                                'lstm1_out': lstm4_out, 'out_conv': out_conv, 'c1': c1, 'bn1': bn1,
+                                'c2': c2, 'bn2': b2, 'c3': c3, 'bn3': b3, 'c4': c4, 'bn4': b4
                                 }
                 self.layers_dict.append(local_layers)
 
         return [ld['out_conv'] for ld in self.layers_dict]
+
+
 class LSTMNetworkValid(object):
     def __init__(self):
         self.layers_dict = []
@@ -145,13 +152,14 @@ class LSTMNetworkValid(object):
 
         def conv_bn_relu_pool(_input_image, name, kxy, kout, stride=None, biased=True, reuse=None):
 
-            conv, _, _ = Layers.conv(_input_image, name=name+'/conv', kx=kxy, ky=kxy, kout=kout, stride=stride, biased=biased,
-                               padding='VALID', data_format=data_format, reuse=reuse)
-            bn = Layers.batch_norm(conv, phase_train, name+'/bn', reuse=reuse, data_format=data_format)
-            relu = Layers.leaky_relu(bn, name+'/relu')
+            conv, _, _ = Layers.conv(_input_image, name=name + '/conv', kx=kxy, ky=kxy, kout=kout, stride=stride,
+                                     biased=biased,
+                                     padding='VALID', data_format=data_format, reuse=reuse)
+            bn = Layers.batch_norm(conv, phase_train, name + '/bn', reuse=reuse, data_format=data_format)
+            relu = Layers.leaky_relu(bn, name + '/relu')
             # ln = Layers.layer_norm(conv, data_format=data_format)
             # relu = Layers.leaky_relu(ln, name+'/relu')
-            pool = Layers.max_pool(relu, name=name+'/pool', padding='VALID', data_format=data_format)
+            pool = Layers.max_pool(relu, name=name + '/pool', padding='VALID', data_format=data_format)
 
             return pool, relu
 
@@ -180,18 +188,18 @@ class LSTMNetworkValid(object):
                 layer3_shape = layer3.get_shape().as_list()
                 layer4_shape = layer4.get_shape().as_list()
                 lstm4 = LayerNormConvLSTMCell(shape=layer4_shape[2:], filter_size=lstm_kxy,
-                                          num_features=lstm_kout4, data_format=data_format)
+                                              num_features=lstm_kout4, data_format=data_format)
                 lstm3 = LayerNormConvLSTMCell(shape=layer3_shape[2:], filter_size=lstm_kxy,
-                                          num_features=lstm_kout3, data_format=data_format)
+                                              num_features=lstm_kout3, data_format=data_format)
                 lstm2 = LayerNormConvLSTMCell(shape=layer2_shape[2:], filter_size=lstm_kxy,
-                                          num_features=lstm_kout2, data_format=data_format)
+                                              num_features=lstm_kout2, data_format=data_format)
                 lstm1 = LayerNormConvLSTMCell(shape=input_shape[2:], filter_size=lstm_kxy,
-                                          num_features=lstm_kout1, data_format=data_format)
+                                              num_features=lstm_kout1, data_format=data_format)
 
                 if t == 0:
                     z1 = lstm1.zero_state(batch_size=input_shape[0])
                     init_state = [(tf.placeholder_with_default(z1[0], z1[0].get_shape(), 'init_state_ph_1'),
-                                  tf.placeholder_with_default(z1[1], z1[1].get_shape(), 'init_state_ph_1_c'))]
+                                   tf.placeholder_with_default(z1[1], z1[1].get_shape(), 'init_state_ph_1_c'))]
                     z2 = lstm2.zero_state(batch_size=input_shape[0])
                     init_state.append((tf.placeholder_with_default(z2[0], z2[0].get_shape(), 'init_state_ph_2'),
                                        tf.placeholder_with_default(z2[1], z2[1].get_shape(), 'init_state_ph_2_c')))
@@ -220,7 +228,7 @@ class LSTMNetworkValid(object):
                 self.states.append([lstm1_state, lstm2_state, lstm3_state, lstm4_state])
 
                 out_conv, _, _ = Layers.conv(lstm1_out, name='out_conv', kx=1, ky=1, kout=3, padding='SAME',
-                                       data_format=data_format, reuse=t > 0)
+                                             data_format=data_format, reuse=t > 0)
                 local_layers = {'input_image': input_image, 'layer1': layer1, 'layer1p': layer1p, 'layer2': layer2,
                                 'layer2p': layer2p, 'layer3': layer3, 'layer3p': layer3p, 'layer4': layer4,
                                 'lstm4_out': lstm4_out, 'lstm4_up': lstm4_up, 'lstm3_out': lstm3_out,
@@ -248,18 +256,18 @@ class NormBiLSTMNetwork(object):
 
         def conv_bn_relu_pool(_input_image, name, kxy, kout, stride=None, biased=True, reuse=None):
 
-            conv, _, _ = Layers.conv(_input_image, name=name+'/conv', kx=kxy, ky=kxy, kout=kout, stride=stride, biased=biased,
-                               padding='SAME', data_format=data_format, reuse=reuse)
-            bn = Layers.batch_norm(conv, phase_train, name+'/bn', reuse=reuse, data_format=data_format)
-            relu = Layers.leaky_relu(bn, name+'/relu')
-            pool = Layers.max_pool(relu, name=name+'/pool', padding='SAME', data_format=data_format)
+            conv, _, _ = Layers.conv(_input_image, name=name + '/conv', kx=kxy, ky=kxy, kout=kout, stride=stride,
+                                     biased=biased,
+                                     padding='SAME', data_format=data_format, reuse=reuse)
+            bn = Layers.batch_norm(conv, phase_train, name + '/bn', reuse=reuse, data_format=data_format)
+            relu = Layers.leaky_relu(bn, name + '/relu')
+            pool = Layers.max_pool(relu, name=name + '/pool', padding='SAME', data_format=data_format)
 
             return pool, relu
 
         for t, input_image in enumerate(input_sequence):
 
             with tf.name_scope('time_step-{}_forward'.format(t)):
-
 
                 conv_kxy = net_params['conv_kxy']
                 kout1 = net_params['kout1']
@@ -282,19 +290,18 @@ class NormBiLSTMNetwork(object):
                 layer3_shape = layer3.get_shape().as_list()
                 layer4_shape = layer4.get_shape().as_list()
                 lstm4 = LayerNormConvLSTMCell(shape=layer4_shape[2:], filter_size=lstm_kxy,
-                                          num_features=lstm_kout4, data_format=data_format)
+                                              num_features=lstm_kout4, data_format=data_format)
                 lstm3 = LayerNormConvLSTMCell(shape=layer3_shape[2:], filter_size=lstm_kxy,
-                                          num_features=lstm_kout3, data_format=data_format)
+                                              num_features=lstm_kout3, data_format=data_format)
                 lstm2 = LayerNormConvLSTMCell(shape=layer2_shape[2:], filter_size=lstm_kxy,
-                                          num_features=lstm_kout2, data_format=data_format)
+                                              num_features=lstm_kout2, data_format=data_format)
                 lstm1 = LayerNormConvLSTMCell(shape=input_shape[2:], filter_size=lstm_kxy,
-                                          num_features=lstm_kout1, data_format=data_format)
-
+                                              num_features=lstm_kout1, data_format=data_format)
 
                 if t == 0:
                     z1 = lstm1.zero_state(batch_size=input_shape[0])
                     init_state = [(tf.placeholder_with_default(z1[0], z1[0].get_shape(), 'init_state_ph_1'),
-                                  tf.placeholder_with_default(z1[1], z1[1].get_shape(), 'init_state_ph_1_c'))]
+                                   tf.placeholder_with_default(z1[1], z1[1].get_shape(), 'init_state_ph_1_c'))]
                     z2 = lstm2.zero_state(batch_size=input_shape[0])
                     init_state.append((tf.placeholder_with_default(z2[0], z2[0].get_shape(), 'init_state_ph_2'),
                                        tf.placeholder_with_default(z2[1], z2[1].get_shape(), 'init_state_ph_2_c')))
@@ -336,13 +343,13 @@ class NormBiLSTMNetwork(object):
             with tf.name_scope('time_step-{}_back'.format(t)):
 
                 lstm4_back = LayerNormConvLSTMCell(shape=layer4_shape[2:], filter_size=lstm_kxy,
-                                               num_features=lstm_kout4, data_format=data_format)
+                                                   num_features=lstm_kout4, data_format=data_format)
                 lstm3_back = LayerNormConvLSTMCell(shape=layer3_shape[2:], filter_size=lstm_kxy,
-                                               num_features=lstm_kout3, data_format=data_format)
+                                                   num_features=lstm_kout3, data_format=data_format)
                 lstm2_back = LayerNormConvLSTMCell(shape=layer2_shape[2:], filter_size=lstm_kxy,
-                                               num_features=lstm_kout2, data_format=data_format)
+                                                   num_features=lstm_kout2, data_format=data_format)
                 lstm1_back = LayerNormConvLSTMCell(shape=input_shape[2:], filter_size=lstm_kxy,
-                                               num_features=lstm_kout1, data_format=data_format)
+                                                   num_features=lstm_kout1, data_format=data_format)
 
                 if t == 0:
                     z1 = lstm1.zero_state(batch_size=input_shape[0])
@@ -359,7 +366,7 @@ class NormBiLSTMNetwork(object):
                                        tf.placeholder_with_default(z4[1], z4[1].get_shape(), 'init_state_ph_4_c_back')))
 
                     self.states_back.append(init_state)
-                local_layers = self.layers_dict[-1-t]
+                local_layers = self.layers_dict[-1 - t]
 
                 lstm4_out, lstm4_state = lstm4_back(local_layers['layer4'], self.states_back[t][3], scope='lstm4',
                                                     reuse=True)
@@ -370,7 +377,7 @@ class NormBiLSTMNetwork(object):
                 lstm3_up = tf.image.resize_bilinear(tf.transpose(lstm3_out, [0, 2, 3, 1]), layer2_shape[2:])
                 lstm3_up = tf.transpose(lstm3_up, [0, 3, 1, 2])
                 lstm2_input = tf.concat(values=[lstm3_up, local_layers['layer2']], axis=1)
-                lstm2_out, lstm2_state = lstm2_back(lstm2_input, self.states_back[t][1], scope='lstm2',reuse=True)
+                lstm2_out, lstm2_state = lstm2_back(lstm2_input, self.states_back[t][1], scope='lstm2', reuse=True)
                 lstm2_up = tf.image.resize_bilinear(tf.transpose(lstm2_out, [0, 2, 3, 1]), input_shape[2:])
                 lstm2_up = tf.transpose(lstm2_up, [0, 3, 1, 2])
                 lstm1_input = tf.concat(values=[lstm2_up, local_layers['layer1']], axis=1)
@@ -426,19 +433,20 @@ class BiLSTMNetwork(object):
 
         def conv_bn_relu_pool(_input_image, name, kxy, kout, stride=None, biased=True, reuse=None):
 
-            conv, _, _ = Layers.conv(_input_image, name=name+'/conv', kx=kxy, ky=kxy, kout=kout, stride=stride, biased=biased,
-                               padding='SAME', data_format=data_format, reuse=reuse)
-            bn = Layers.batch_norm(conv, phase_train, name+'/bn', reuse=reuse, data_format=data_format)
-            relu = Layers.leaky_relu(bn, name+'/relu')
-            pool = Layers.max_pool(relu, name=name+'/pool', padding='SAME', data_format=data_format)
+            conv, _, _ = Layers.conv(_input_image, name=name + '/conv', kx=kxy, ky=kxy, kout=kout, stride=stride,
+                                     biased=biased,
+                                     padding='SAME', data_format=data_format, reuse=reuse)
+            bn = Layers.batch_norm(conv, phase_train, name + '/bn', reuse=reuse, data_format=data_format)
+            relu = Layers.leaky_relu(bn, name + '/relu')
+            pool = Layers.max_pool(relu, name=name + '/pool', padding='SAME', data_format=data_format)
 
             return pool, relu
+
         if not max_len:
             max_len = len(input_sequence)
         for t, input_image in enumerate(input_sequence):
 
             with tf.name_scope('time_step-{}_forward'.format(t)):
-
 
                 conv_kxy = net_params['conv_kxy']
                 kout1 = net_params['kout1']
@@ -469,11 +477,10 @@ class BiLSTMNetwork(object):
                 lstm1 = BasicConvLSTMCell(shape=input_shape[2:], filter_size=lstm_kxy,
                                           num_features=lstm_kout1, data_format=data_format)
 
-
                 if t == 0:
                     z1 = lstm1.zero_state(batch_size=input_shape[0])
                     init_state = [(tf.placeholder_with_default(z1[0], z1[0].get_shape(), 'init_state_ph_1'),
-                                  tf.placeholder_with_default(z1[1], z1[1].get_shape(), 'init_state_ph_1_c'))]
+                                   tf.placeholder_with_default(z1[1], z1[1].get_shape(), 'init_state_ph_1_c'))]
                     z2 = lstm2.zero_state(batch_size=input_shape[0])
                     init_state.append((tf.placeholder_with_default(z2[0], z2[0].get_shape(), 'init_state_ph_2'),
                                        tf.placeholder_with_default(z2[1], z2[1].get_shape(), 'init_state_ph_2_c')))
@@ -490,15 +497,18 @@ class BiLSTMNetwork(object):
                 lstm4_up = tf.image.resize_bilinear(tf.transpose(lstm4_out, [0, 2, 3, 1]), layer3_shape[2:])
                 lstm4_up = tf.transpose(lstm4_up, [0, 3, 1, 2])
                 lstm3_input = tf.concat(values=[lstm4_up, layer3], axis=1)
-                lstm3_out, lstm3_state = lstm3(lstm3_input, self.states[t][2], scope='lstm3', reuse=t > 0, clip_cell=max_len)
+                lstm3_out, lstm3_state = lstm3(lstm3_input, self.states[t][2], scope='lstm3', reuse=t > 0,
+                                               clip_cell=max_len)
                 lstm3_up = tf.image.resize_bilinear(tf.transpose(lstm3_out, [0, 2, 3, 1]), layer2_shape[2:])
                 lstm3_up = tf.transpose(lstm3_up, [0, 3, 1, 2])
                 lstm2_input = tf.concat(values=[lstm3_up, layer2], axis=1)
-                lstm2_out, lstm2_state = lstm2(lstm2_input, self.states[t][1], scope='lstm2', reuse=t > 0, clip_cell=max_len)
+                lstm2_out, lstm2_state = lstm2(lstm2_input, self.states[t][1], scope='lstm2', reuse=t > 0,
+                                               clip_cell=max_len)
                 lstm2_up = tf.image.resize_bilinear(tf.transpose(lstm2_out, [0, 2, 3, 1]), input_shape[2:])
                 lstm2_up = tf.transpose(lstm2_up, [0, 3, 1, 2])
                 lstm1_input = tf.concat(values=[lstm2_up, layer1], axis=1)
-                lstm1_out, lstm1_state = lstm1(lstm1_input, self.states[t][0], scope='lstm1', reuse=t > 0, clip_cell=max_len)
+                lstm1_out, lstm1_state = lstm1(lstm1_input, self.states[t][0], scope='lstm1', reuse=t > 0,
+                                               clip_cell=max_len)
 
                 self.states.append([lstm1_state, lstm2_state, lstm3_state, lstm4_state])
 
@@ -538,22 +548,25 @@ class BiLSTMNetwork(object):
                                        tf.placeholder_with_default(z4[1], z4[1].get_shape(), 'init_state_ph_4_c_back')))
 
                     self.states_back.append(init_state)
-                local_layers = self.layers_dict[-1-t]
+                local_layers = self.layers_dict[-1 - t]
 
                 lstm4_out, lstm4_state = lstm4_back(local_layers['layer4'], self.states_back[t][3], scope='lstm4',
                                                     reuse=True, clip_cell=max_len)
                 lstm4_up = tf.image.resize_bilinear(tf.transpose(lstm4_out, [0, 2, 3, 1]), layer3_shape[2:])
                 lstm4_up = tf.transpose(lstm4_up, [0, 3, 1, 2])
                 lstm3_input = tf.concat(values=[lstm4_up, local_layers['layer3']], axis=1)
-                lstm3_out, lstm3_state = lstm3_back(lstm3_input, self.states_back[t][2], scope='lstm3', reuse=True, clip_cell=max_len)
+                lstm3_out, lstm3_state = lstm3_back(lstm3_input, self.states_back[t][2], scope='lstm3', reuse=True,
+                                                    clip_cell=max_len)
                 lstm3_up = tf.image.resize_bilinear(tf.transpose(lstm3_out, [0, 2, 3, 1]), layer2_shape[2:])
                 lstm3_up = tf.transpose(lstm3_up, [0, 3, 1, 2])
                 lstm2_input = tf.concat(values=[lstm3_up, local_layers['layer2']], axis=1)
-                lstm2_out, lstm2_state = lstm2_back(lstm2_input, self.states_back[t][1], scope='lstm2',reuse=True, clip_cell=max_len)
+                lstm2_out, lstm2_state = lstm2_back(lstm2_input, self.states_back[t][1], scope='lstm2', reuse=True,
+                                                    clip_cell=max_len)
                 lstm2_up = tf.image.resize_bilinear(tf.transpose(lstm2_out, [0, 2, 3, 1]), input_shape[2:])
                 lstm2_up = tf.transpose(lstm2_up, [0, 3, 1, 2])
                 lstm1_input = tf.concat(values=[lstm2_up, local_layers['layer1']], axis=1)
-                lstm1_out, lstm1_state = lstm1_back(lstm1_input, self.states_back[t][0], scope='lstm1', reuse=True, clip_cell=max_len)
+                lstm1_out, lstm1_state = lstm1_back(lstm1_input, self.states_back[t][0], scope='lstm1', reuse=True,
+                                                    clip_cell=max_len)
 
                 self.states_back.append([lstm1_state, lstm2_state, lstm3_state, lstm4_state])
 
@@ -605,18 +618,18 @@ class BiGRUNetwork(object):
 
         def conv_bn_relu_pool(_input_image, name, kxy, kout, stride=None, biased=True, reuse=None):
 
-            conv, _, _ = Layers.conv(_input_image, name=name+'/conv', kx=kxy, ky=kxy, kout=kout, stride=stride, biased=biased,
-                               padding='SAME', data_format=data_format, reuse=reuse)
-            bn = Layers.batch_norm(conv, phase_train, name+'/bn', reuse=reuse, data_format=data_format)
-            relu = Layers.leaky_relu(bn, name+'/relu')
-            pool = Layers.max_pool(relu, name=name+'/pool', padding='SAME', data_format=data_format)
+            conv, _, _ = Layers.conv(_input_image, name=name + '/conv', kx=kxy, ky=kxy, kout=kout, stride=stride,
+                                     biased=biased,
+                                     padding='SAME', data_format=data_format, reuse=reuse)
+            bn = Layers.batch_norm(conv, phase_train, name + '/bn', reuse=reuse, data_format=data_format)
+            relu = Layers.leaky_relu(bn, name + '/relu')
+            pool = Layers.max_pool(relu, name=name + '/pool', padding='SAME', data_format=data_format)
 
             return pool, relu
 
         for t, input_image in enumerate(input_sequence):
 
             with tf.name_scope('time_step-{}_forward'.format(t)):
-
 
                 conv_kxy = net_params['conv_kxy']
                 kout1 = net_params['kout1']
@@ -639,13 +652,13 @@ class BiGRUNetwork(object):
                 layer3_shape = layer3.get_shape().as_list()
                 layer4_shape = layer4.get_shape().as_list()
                 lstm4 = BasicConvGRUCell(shape=layer4_shape[2:], filter_size=lstm_kxy,
-                                          num_features=lstm_kout4, data_format=data_format)
+                                         num_features=lstm_kout4, data_format=data_format)
                 lstm3 = BasicConvGRUCell(shape=layer3_shape[2:], filter_size=lstm_kxy,
-                                          num_features=lstm_kout3, data_format=data_format)
+                                         num_features=lstm_kout3, data_format=data_format)
                 lstm2 = BasicConvGRUCell(shape=layer2_shape[2:], filter_size=lstm_kxy,
-                                          num_features=lstm_kout2, data_format=data_format)
+                                         num_features=lstm_kout2, data_format=data_format)
                 lstm1 = BasicConvGRUCell(shape=input_shape[2:], filter_size=lstm_kxy,
-                                          num_features=lstm_kout1, data_format=data_format)
+                                         num_features=lstm_kout1, data_format=data_format)
 
                 if t == 0:
                     z1 = lstm1.zero_state(batch_size=input_shape[0])
@@ -706,10 +719,10 @@ class BiGRUNetwork(object):
                     z4 = lstm4.zero_state(batch_size=input_shape[0])
                     init_state.append(tf.placeholder_with_default(z4[0], z4[0].get_shape(), 'init_state_ph_4'))
                     self.states_back.append(init_state)
-                local_layers = self.layers_dict[-1-t]
+                local_layers = self.layers_dict[-1 - t]
 
                 lstm4_out = lstm4_back(local_layers['layer4'], self.states_back[t][3], scope='lstm4',
-                                                    reuse=True)
+                                       reuse=True)
                 lstm4_up = tf.image.resize_bilinear(tf.transpose(lstm4_out, [0, 2, 3, 1]), layer3_shape[2:])
                 lstm4_up = tf.transpose(lstm4_up, [0, 3, 1, 2])
                 lstm3_input = tf.concat(values=[lstm4_up, local_layers['layer3']], axis=1)
@@ -717,7 +730,7 @@ class BiGRUNetwork(object):
                 lstm3_up = tf.image.resize_bilinear(tf.transpose(lstm3_out, [0, 2, 3, 1]), layer2_shape[2:])
                 lstm3_up = tf.transpose(lstm3_up, [0, 3, 1, 2])
                 lstm2_input = tf.concat(values=[lstm3_up, local_layers['layer2']], axis=1)
-                lstm2_out = lstm2_back(lstm2_input, self.states_back[t][1], scope='lstm2',reuse=True)
+                lstm2_out = lstm2_back(lstm2_input, self.states_back[t][1], scope='lstm2', reuse=True)
                 lstm2_up = tf.image.resize_bilinear(tf.transpose(lstm2_out, [0, 2, 3, 1]), input_shape[2:])
                 lstm2_up = tf.transpose(lstm2_up, [0, 3, 1, 2])
                 lstm1_input = tf.concat(values=[lstm2_up, local_layers['layer1']], axis=1)
@@ -768,11 +781,12 @@ class LSTMNetwork_Trans(object):
 
         def conv_bn_relu_pool(_input_image, name, kxy, kout, stride=None, biased=True, reuse=None):
 
-            conv, _, _ = Layers.conv(_input_image, name=name+'/conv', kx=kxy, ky=kxy, kout=kout, stride=stride, biased=biased,
-                               padding='SAME', data_format=data_format, reuse=reuse)
-            bn = Layers.batch_norm(conv, phase_train, name+'/bn', reuse=reuse, data_format=data_format)
-            relu = Layers.leaky_relu(bn, name+'/relu')
-            pool = Layers.max_pool(relu, name=name+'/pool', padding='SAME', data_format=data_format)
+            conv, _, _ = Layers.conv(_input_image, name=name + '/conv', kx=kxy, ky=kxy, kout=kout, stride=stride,
+                                     biased=biased,
+                                     padding='SAME', data_format=data_format, reuse=reuse)
+            bn = Layers.batch_norm(conv, phase_train, name + '/bn', reuse=reuse, data_format=data_format)
+            relu = Layers.leaky_relu(bn, name + '/relu')
+            pool = Layers.max_pool(relu, name=name + '/pool', padding='SAME', data_format=data_format)
 
             return pool, relu
 
@@ -811,18 +825,18 @@ class LSTMNetwork_Trans(object):
                 layer3_shape = layer3.get_shape().as_list()
                 layer4_shape = layer4.get_shape().as_list()
                 lstm4 = LayerNormConvLSTMCell(shape=layer4_shape[2:], filter_size=lstm_kxy,
-                                          num_features=lstm_kout4, data_format=data_format)
+                                              num_features=lstm_kout4, data_format=data_format)
                 lstm3 = LayerNormConvLSTMCell(shape=layer3_shape[2:], filter_size=lstm_kxy,
-                                          num_features=lstm_kout3, data_format=data_format)
+                                              num_features=lstm_kout3, data_format=data_format)
                 lstm2 = LayerNormConvLSTMCell(shape=layer2_shape[2:], filter_size=lstm_kxy,
-                                          num_features=lstm_kout2, data_format=data_format)
+                                              num_features=lstm_kout2, data_format=data_format)
                 lstm1 = LayerNormConvLSTMCell(shape=input_shape[2:], filter_size=lstm_kxy,
-                                          num_features=lstm_kout1, data_format=data_format)
+                                              num_features=lstm_kout1, data_format=data_format)
 
                 if t == 0:
                     z1 = lstm1.zero_state(batch_size=input_shape[0])
                     init_state = [(tf.placeholder_with_default(z1[0], z1[0].get_shape(), 'init_state_ph_1'),
-                                  tf.placeholder_with_default(z1[1], z1[1].get_shape(), 'init_state_ph_1_c'))]
+                                   tf.placeholder_with_default(z1[1], z1[1].get_shape(), 'init_state_ph_1_c'))]
                     z2 = lstm2.zero_state(batch_size=input_shape[0])
                     init_state.append((tf.placeholder_with_default(z2[0], z2[0].get_shape(), 'init_state_ph_2'),
                                        tf.placeholder_with_default(z2[1], z2[1].get_shape(), 'init_state_ph_2_c')))
@@ -852,7 +866,7 @@ class LSTMNetwork_Trans(object):
                 self.states.append([lstm1_state, lstm2_state, lstm3_state, lstm4_state])
 
                 out_conv, _, _ = Layers.conv(lstm1_out, name='out_conv', kx=1, ky=1, kout=3, padding='SAME',
-                                       data_format=data_format, reuse=t > 0)
+                                             data_format=data_format, reuse=t > 0)
                 local_layers = {'input_image': input_image, 'layer1': layer1, 'layer1p': layer1p, 'layer2': layer2,
                                 'layer2p': layer2p, 'layer3': layer3, 'layer3p': layer3p, 'layer4': layer4,
                                 'lstm4_out': lstm4_out, 'lstm4_up': lstm4_up, 'lstm3_out': lstm3_out,
@@ -862,3 +876,5 @@ class LSTMNetwork_Trans(object):
                 self.layers_dict.append(local_layers)
 
         return [ld['out_conv'] for ld in self.layers_dict]
+
+
